@@ -65,10 +65,18 @@
     .background {
       position: fixed;
       inset: 0;
+
       overflow: hidden;
+
       pointer-events: none;
+
       z-index: 0;
     }
+
+
+    /* =========================================================
+       SOFT AURORA
+    ========================================================= */
 
     .orb {
       position: absolute;
@@ -92,8 +100,10 @@
 
       filter: blur(70px);
 
-      animation: floatOne 18s ease-in-out infinite alternate;
+      animation:
+        floatOne 18s ease-in-out infinite alternate;
     }
+
 
     .orb.two {
       width: 440px;
@@ -113,27 +123,290 @@
           transparent 72%
         );
 
-      animation: floatTwo 22s ease-in-out infinite alternate;
+      animation:
+        floatTwo 22s ease-in-out infinite alternate;
     }
+
 
     @keyframes floatOne {
+
       from {
-        transform: translate(0, 0) scale(1);
+        transform:
+          translate(0, 0)
+          scale(1);
       }
 
       to {
-        transform: translate(70px, 55px) scale(1.08);
+        transform:
+          translate(70px, 55px)
+          scale(1.08);
       }
+
     }
 
+
     @keyframes floatTwo {
+
       from {
-        transform: translate(0, 0) scale(1);
+        transform:
+          translate(0, 0)
+          scale(1);
       }
 
       to {
-        transform: translate(-70px, -50px) scale(1.08);
+        transform:
+          translate(-70px, -50px)
+          scale(1.08);
       }
+
+    }
+
+
+    /* =========================================================
+       FLOATING SHAPES
+    ========================================================= */
+
+    .floating-shapes {
+      position: absolute;
+      inset: 0;
+
+      pointer-events: none;
+    }
+
+
+    .shape {
+      position: absolute;
+
+      display: block;
+
+      opacity: 0.16;
+
+      will-change:
+        transform;
+    }
+
+
+    /* Circle */
+
+    .shape-circle {
+      width: 42px;
+      height: 42px;
+
+      border:
+        1px solid rgba(17, 17, 17, 0.34);
+
+      border-radius: 50%;
+
+      left: 18%;
+      top: 21%;
+
+      animation:
+        floatCircle 13s ease-in-out infinite;
+    }
+
+
+    @keyframes floatCircle {
+
+      0% {
+        transform:
+          translate3d(0, 0, 0)
+          rotate(0deg);
+      }
+
+      50% {
+        transform:
+          translate3d(35px, -28px, 0)
+          rotate(80deg);
+      }
+
+      100% {
+        transform:
+          translate3d(-10px, 25px, 0)
+          rotate(160deg);
+      }
+
+    }
+
+
+    /* Small square */
+
+    .shape-square {
+      width: 13px;
+      height: 13px;
+
+      border:
+        1px solid rgba(17, 17, 17, 0.30);
+
+      left: 74%;
+      top: 19%;
+
+      transform: rotate(24deg);
+
+      animation:
+        floatSquare 11s ease-in-out infinite;
+    }
+
+
+    @keyframes floatSquare {
+
+      0%,
+      100% {
+        transform:
+          translate3d(0, 0, 0)
+          rotate(24deg);
+      }
+
+      50% {
+        transform:
+          translate3d(-24px, 38px, 0)
+          rotate(115deg);
+      }
+
+    }
+
+
+    /* Large ring */
+
+    .shape-ring {
+      width: 88px;
+      height: 88px;
+
+      border:
+        1px solid rgba(17, 17, 17, 0.12);
+
+      border-radius: 50%;
+
+      right: 19%;
+      top: 39%;
+
+      animation:
+        floatRing 17s ease-in-out infinite;
+    }
+
+
+    @keyframes floatRing {
+
+      0%,
+      100% {
+        transform:
+          translate3d(0, 0, 0)
+          rotate(0deg);
+      }
+
+      50% {
+        transform:
+          translate3d(25px, -30px, 0)
+          rotate(45deg);
+      }
+
+    }
+
+
+    /* Diamond */
+
+    .shape-diamond {
+      width: 19px;
+      height: 19px;
+
+      border:
+        1px solid rgba(17, 17, 17, 0.25);
+
+      left: 61%;
+      bottom: 22%;
+
+      transform: rotate(45deg);
+
+      animation:
+        floatDiamond 15s ease-in-out infinite;
+    }
+
+
+    @keyframes floatDiamond {
+
+      0%,
+      100% {
+        transform:
+          translate3d(0, 0, 0)
+          rotate(45deg);
+      }
+
+      50% {
+        transform:
+          translate3d(32px, -25px, 0)
+          rotate(135deg);
+      }
+
+    }
+
+
+    /* Tiny dot */
+
+    .shape-dot {
+      width: 7px;
+      height: 7px;
+
+      border-radius: 50%;
+
+      background: rgba(17, 17, 17, 0.32);
+
+      left: 84%;
+      bottom: 31%;
+
+      animation:
+        floatDot 9s ease-in-out infinite;
+    }
+
+
+    @keyframes floatDot {
+
+      0%,
+      100% {
+        transform:
+          translate3d(0, 0, 0);
+      }
+
+      50% {
+        transform:
+          translate3d(-20px, -32px, 0);
+      }
+
+    }
+
+
+    /* Tiny horizontal line */
+
+    .shape-line {
+      width: 48px;
+      height: 1px;
+
+      background:
+        rgba(17, 17, 17, 0.20);
+
+      left: 43%;
+      bottom: 17%;
+
+      transform: rotate(-28deg);
+
+      animation:
+        floatLine 14s ease-in-out infinite;
+    }
+
+
+    @keyframes floatLine {
+
+      0%,
+      100% {
+        transform:
+          translate3d(0, 0, 0)
+          rotate(-28deg);
+      }
+
+      50% {
+        transform:
+          translate3d(-28px, -18px, 0)
+          rotate(-12deg);
+      }
+
     }
 
 
@@ -150,11 +423,13 @@
       left: 50%;
       top: 50%;
 
-      transform: translate(-50%, -50%);
+      transform:
+        translate(-50%, -50%);
 
       border-radius: 50%;
 
       pointer-events: none;
+
       z-index: 1;
 
       background:
@@ -169,7 +444,8 @@
 
       opacity: 0;
 
-      transition: opacity 0.4s ease;
+      transition:
+        opacity 0.4s ease;
     }
 
 
@@ -179,6 +455,7 @@
 
     .page {
       position: relative;
+
       z-index: 2;
 
       width: 100%;
@@ -205,10 +482,12 @@
       align-items: center;
       justify-content: space-between;
 
-      animation: fadeIn 0.8s ease forwards;
+      animation:
+        fadeIn 0.8s ease forwards;
 
       opacity: 0;
     }
+
 
     .logo {
       font-size: 15px;
@@ -219,9 +498,11 @@
       letter-spacing: -0.04em;
     }
 
+
     .status {
       display: flex;
       align-items: center;
+
       gap: 9px;
 
       color: #777777;
@@ -231,6 +512,7 @@
 
       letter-spacing: -0.01em;
     }
+
 
     .status-dot {
       width: 6px;
@@ -245,10 +527,13 @@
       box-shadow:
         0 0 0 4px rgba(17, 17, 17, 0.055);
 
-      animation: pulse 2.5s ease-in-out infinite;
+      animation:
+        pulse 2.5s ease-in-out infinite;
     }
 
+
     @keyframes pulse {
+
       0%,
       100% {
         opacity: 0.45;
@@ -259,6 +544,7 @@
         opacity: 1;
         transform: scale(1);
       }
+
     }
 
 
@@ -272,15 +558,15 @@
 
       margin: auto 0;
 
-      /*
-        Slightly above true vertical center.
-        This creates a more intentional editorial composition.
-      */
-
-      transform: translateY(-2vh);
+      transform:
+        translateY(-2vh);
 
       animation:
-        heroIn 1.05s cubic-bezier(0.16, 1, 0.3, 1) 0.08s forwards;
+        heroIn
+        1.05s
+        cubic-bezier(0.16, 1, 0.3, 1)
+        0.08s
+        forwards;
 
       opacity: 0;
     }
@@ -293,6 +579,7 @@
     .year {
       display: flex;
       align-items: center;
+
       gap: 14px;
 
       margin-bottom: 25px;
@@ -305,6 +592,7 @@
       letter-spacing: 0.08em;
     }
 
+
     .year-line {
       width: 36px;
       height: 1px;
@@ -314,7 +602,7 @@
 
 
     /* =========================================================
-       MAIN HEADING
+       HEADING
     ========================================================= */
 
     .heading {
@@ -333,17 +621,14 @@
       font-weight: 600;
     }
 
+
     .name {
       color: #111111;
     }
 
+
     .statement {
       color: #898989;
-
-      /*
-        Slightly smaller than the name.
-        This creates a deliberate hierarchy.
-      */
 
       font-size: 0.91em;
 
@@ -376,10 +661,12 @@
     .actions {
       display: flex;
       align-items: center;
+
       gap: 10px;
 
       margin-top: 30px;
     }
+
 
     .button {
       height: 46px;
@@ -387,23 +674,31 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+
       gap: 9px;
 
-      padding: 0 17px;
+      padding:
+        0 17px;
 
-      border: 1px solid rgba(0, 0, 0, 0.095);
+      border:
+        1px solid rgba(0, 0, 0, 0.095);
 
       border-radius: 999px;
 
-      background: rgba(255, 255, 255, 0.58);
+      background:
+        rgba(255, 255, 255, 0.58);
 
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter:
+        blur(16px);
+
+      -webkit-backdrop-filter:
+        blur(16px);
 
       box-shadow:
         0 1px 2px rgba(0, 0, 0, 0.025);
 
       font-size: 12px;
+
       font-weight: 500;
 
       transition:
@@ -413,8 +708,10 @@
         box-shadow 0.3s ease;
     }
 
+
     .button:hover {
-      background: rgba(255, 255, 255, 0.9);
+      background:
+        rgba(255, 255, 255, 0.90);
 
       border-color:
         rgba(0, 0, 0, 0.15);
@@ -423,6 +720,7 @@
         0 10px 26px rgba(0, 0, 0, 0.06);
     }
 
+
     .github-icon {
       width: 16px;
       height: 16px;
@@ -430,12 +728,14 @@
       fill: currentColor;
     }
 
+
     .arrow {
       font-size: 14px;
 
       transition:
         transform 0.25s ease;
     }
+
 
     .button:hover .arrow {
       transform:
@@ -470,6 +770,7 @@
     ========================================================= */
 
     @keyframes fadeIn {
+
       from {
         opacity: 0;
       }
@@ -477,23 +778,31 @@
       to {
         opacity: 1;
       }
+
     }
 
+
     @keyframes heroIn {
+
       from {
         opacity: 0;
-        transform: translateY(18px);
+
+        transform:
+          translateY(18px);
       }
 
       to {
         opacity: 1;
-        transform: translateY(-2vh);
+
+        transform:
+          translateY(-2vh);
       }
+
     }
 
 
     /* =========================================================
-       1366 x 768 / SHORT LAPTOPS
+       SHORT LAPTOPS
     ========================================================= */
 
     @media (
@@ -508,7 +817,8 @@
       }
 
       .hero {
-        transform: translateY(-1vh);
+        transform:
+          translateY(-1vh);
       }
 
       .year {
@@ -527,11 +837,25 @@
       .actions {
         margin-top: 25px;
       }
+
+      /*
+        Reduce background objects slightly on shorter screens.
+      */
+
+      .shape-ring {
+        right: 13%;
+        top: 35%;
+      }
+
+      .shape-circle {
+        left: 20%;
+        top: 17%;
+      }
     }
 
 
     /* =========================================================
-       LARGE SCREENS
+       LARGE DESKTOP
     ========================================================= */
 
     @media (min-width: 1600px) {
@@ -543,6 +867,7 @@
       .hero {
         max-width: 1180px;
       }
+
     }
 
 
@@ -564,7 +889,8 @@
       }
 
       .hero {
-        transform: translateY(-1vh);
+        transform:
+          translateY(-1vh);
       }
 
       .year {
@@ -607,9 +933,42 @@
           0 14px;
       }
 
+      /*
+        Keep only a couple of shapes on mobile.
+      */
+
+      .shape-circle {
+        width: 30px;
+        height: 30px;
+
+        left: 12%;
+        top: 28%;
+      }
+
+      .shape-ring {
+        width: 60px;
+        height: 60px;
+
+        right: 8%;
+        top: 63%;
+      }
+
+      .shape-square {
+        left: auto;
+        right: 18%;
+        top: 20%;
+      }
+
+      .shape-diamond,
+      .shape-dot,
+      .shape-line {
+        display: none;
+      }
+
       .cursor-glow {
         display: none;
       }
+
     }
 
 
@@ -636,6 +995,7 @@
         padding-left: 13px;
         padding-right: 13px;
       }
+
     }
 
 
@@ -656,25 +1016,64 @@
       .cursor-glow {
         display: none;
       }
+
     }
+
   </style>
 </head>
 
 
 <body>
 
-  <!-- Background -->
-  <div class="background" aria-hidden="true">
+  <!-- =======================================================
+       BACKGROUND
+  ======================================================== -->
+
+  <div class="background">
+
+    <!-- Soft atmospheric gradients -->
+
     <div class="orb"></div>
     <div class="orb two"></div>
+
+
+    <!-- Floating geometric elements -->
+
+    <div class="floating-shapes">
+
+      <span class="shape shape-circle"></span>
+
+      <span class="shape shape-square"></span>
+
+      <span class="shape shape-ring"></span>
+
+      <span class="shape shape-diamond"></span>
+
+      <span class="shape shape-dot"></span>
+
+      <span class="shape shape-line"></span>
+
+    </div>
+
   </div>
 
 
-  <!-- Cursor light -->
-  <div class="cursor-glow" aria-hidden="true"></div>
+  <!-- =======================================================
+       CURSOR LIGHT
+  ======================================================== -->
 
+  <div
+    class="cursor-glow"
+    aria-hidden="true"
+  ></div>
+
+
+  <!-- =======================================================
+       PAGE
+  ======================================================== -->
 
   <div class="page">
+
 
     <!-- =====================================================
          HEADER
@@ -686,9 +1085,13 @@
         AM.
       </div>
 
+
       <div class="status">
+
         <span class="status-dot"></span>
+
         Portfolio coming soon
+
       </div>
 
     </header>
@@ -700,9 +1103,13 @@
 
     <main class="hero">
 
+
       <div class="year">
+
         <span class="year-line"></span>
+
         <span>2026</span>
+
       </div>
 
 
@@ -724,7 +1131,12 @@
       </p>
 
 
+      <!-- ===================================================
+           ACTIONS
+      ==================================================== -->
+
       <div class="actions">
+
 
         <!-- GitHub -->
 
@@ -741,6 +1153,7 @@
             viewBox="0 0 24 24"
             aria-hidden="true"
           >
+
             <path
               d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.85 10.91.57.1.78-.25.78-.55
               0-.27-.01-1.17-.01-2.13-3.19.69-3.87-1.35-3.87-1.35-.52-1.32-1.27-1.67-1.27-1.67
@@ -751,11 +1164,18 @@
               0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18
               0 .3.21.65.79.54A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"
             />
+
           </svg>
 
-          <span>GitHub</span>
 
-          <span class="arrow">↗</span>
+          <span>
+            GitHub
+          </span>
+
+
+          <span class="arrow">
+            ↗
+          </span>
 
         </a>
 
@@ -768,9 +1188,14 @@
           aria-label="Email Armaan Mittal"
         >
 
-          <span>Get in touch</span>
+          <span>
+            Get in touch
+          </span>
 
-          <span class="arrow">↗</span>
+
+          <span class="arrow">
+            ↗
+          </span>
 
         </a>
 
@@ -784,7 +1209,11 @@
     ====================================================== -->
 
     <footer>
-      <span>© 2026 Armaan Mittal</span>
+
+      <span>
+        © 2026 Armaan Mittal
+      </span>
+
     </footer>
 
   </div>
@@ -793,20 +1222,25 @@
   <script>
 
     /* =========================================================
-       CURSOR FOLLOWING LIGHT
+       CURSOR LIGHT
     ========================================================= */
 
     const cursorGlow =
       document.querySelector(".cursor-glow");
 
     const isTouch =
-      window.matchMedia("(pointer: coarse)").matches;
+      window.matchMedia(
+        "(pointer: coarse)"
+      ).matches;
 
 
     if (!isTouch) {
 
-      let mouseX = window.innerWidth / 2;
-      let mouseY = window.innerHeight / 2;
+      let mouseX =
+        window.innerWidth / 2;
+
+      let mouseY =
+        window.innerHeight / 2;
 
       let currentX = mouseX;
       let currentY = mouseY;
@@ -816,10 +1250,15 @@
         "mousemove",
         (event) => {
 
-          mouseX = event.clientX;
-          mouseY = event.clientY;
+          mouseX =
+            event.clientX;
 
-          cursorGlow.style.opacity = "1";
+          mouseY =
+            event.clientY;
+
+          cursorGlow.style.opacity =
+            "1";
+
         }
       );
 
@@ -827,7 +1266,10 @@
       window.addEventListener(
         "mouseleave",
         () => {
-          cursorGlow.style.opacity = "0";
+
+          cursorGlow.style.opacity =
+            "0";
+
         }
       );
 
@@ -835,10 +1277,13 @@
       function animateCursor() {
 
         currentX +=
-          (mouseX - currentX) * 0.075;
+          (mouseX - currentX) *
+          0.075;
 
         currentY +=
-          (mouseY - currentY) * 0.075;
+          (mouseY - currentY) *
+          0.075;
+
 
         cursorGlow.style.left =
           `${currentX}px`;
@@ -846,13 +1291,16 @@
         cursorGlow.style.top =
           `${currentY}px`;
 
+
         requestAnimationFrame(
           animateCursor
         );
+
       }
 
 
       animateCursor();
+
     }
 
 
@@ -861,45 +1309,107 @@
     ========================================================= */
 
     const buttons =
-      document.querySelectorAll(".magnetic");
+      document.querySelectorAll(
+        ".magnetic"
+      );
 
 
     if (!isTouch) {
 
-      buttons.forEach((button) => {
+      buttons.forEach(
+        (button) => {
 
-        button.addEventListener(
-          "mousemove",
-          (event) => {
+          button.addEventListener(
+            "mousemove",
+            (event) => {
 
-            const rect =
-              button.getBoundingClientRect();
-
-            const x =
-              event.clientX -
-              rect.left -
-              rect.width / 2;
-
-            const y =
-              event.clientY -
-              rect.top -
-              rect.height / 2;
-
-            button.style.transform =
-              `translate(${x * 0.10}px, ${y * 0.10}px)`;
-          }
-        );
+              const rect =
+                button.getBoundingClientRect();
 
 
-        button.addEventListener(
-          "mouseleave",
-          () => {
+              const x =
+                event.clientX -
+                rect.left -
+                rect.width / 2;
 
-            button.style.transform = "";
-          }
-        );
 
-      });
+              const y =
+                event.clientY -
+                rect.top -
+                rect.height / 2;
+
+
+              button.style.transform =
+                `translate(
+                  ${x * 0.10}px,
+                  ${y * 0.10}px
+                )`;
+
+            }
+          );
+
+
+          button.addEventListener(
+            "mouseleave",
+            () => {
+
+              button.style.transform =
+                "";
+
+            }
+          );
+
+        }
+      );
+
+    }
+
+
+    /* =========================================================
+       SUBTLE SHAPE PARALLAX
+    ========================================================= */
+
+    const shapes =
+      document.querySelectorAll(
+        ".shape"
+      );
+
+
+    if (!isTouch) {
+
+      window.addEventListener(
+        "mousemove",
+        (event) => {
+
+          const x =
+            (event.clientX /
+              window.innerWidth -
+              0.5);
+
+          const y =
+            (event.clientY /
+              window.innerHeight -
+              0.5);
+
+
+          shapes.forEach(
+            (shape, index) => {
+
+              const strength =
+                5 + index * 1.5;
+
+
+              shape.style.marginLeft =
+                `${x * strength}px`;
+
+              shape.style.marginTop =
+                `${y * strength}px`;
+
+            }
+          );
+
+        }
+      );
 
     }
 
