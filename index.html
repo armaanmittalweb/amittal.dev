@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Armaan Mittal — Software & Systems Engineer</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* CSS Variables for Warm & Chill Theme */
+    :root {
+      --bg-dark: #0f0e13;
+      --card-bg: rgba(25, 23, 32, 0.65);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-warm: #f97316;
+      --accent-amber: #fbbf24;
+      --accent-gradient: linear-gradient(135deg, #f97316 0%, #fbbf24 100%);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      overflow-x: hidden;
+      padding: 2rem 1.5rem;
+    }
+
+    /* Ambient Warm Glow Backdrops */
+    .glow-1 {
+      position: absolute;
+      top: -10%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(249, 115, 22, 0.12) 0%, rgba(15, 14, 19, 0) 70%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .glow-2 {
+      position: absolute;
+      bottom: -10%;
+      right: -10%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(251, 191, 36, 0.08) 0%, rgba(15, 14, 19, 0) 70%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .container {
+      max-width: 800px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* Header / Nav */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 0 3rem 0;
+    }
+
+    .brand {
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .brand-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-gradient);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      background: rgba(249, 115, 22, 0.1);
+      border: 1px solid rgba(249, 115, 22, 0.2);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #fdba74;
+    }
+
+    .pulse {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--accent-warm);
+      box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(249, 115, 22, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+    }
+
+    /* Hero Section */
+    .hero {
+      margin-bottom: 4rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.5rem, 5vw, 3.5rem);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.25rem;
+    }
+
+    .text-gradient {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 620px;
+      margin-bottom: 2rem;
+    }
+
+    .social-links {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.25rem;
+      border-radius: 12px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--accent-gradient);
+      color: #0f0e13;
+      font-weight: 600;
+      box-shadow: 0 4px 20px rgba(249, 115, 22, 0.25);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(249, 115, 22, 0.35);
+    }
+
+    .btn-secondary {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      backdrop-filter: blur(12px);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    /* Section Headers */
+    .section-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Projects Preview Grid */
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 4rem;
+    }
+
+    .project-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .project-card:hover {
+      border-color: rgba(249, 115, 22, 0.3);
+      transform: translateY(-3px);
+    }
+
+    .project-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+
+    .project-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .coming-soon-pill {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+      color: var(--accent-amber);
+      background: rgba(251, 191, 36, 0.1);
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+    }
+
+    .project-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 1.25rem;
+    }
+
+    .tags {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+    }
+
+    /* Footer */
+    footer {
+      width: 100%;
+      border-top: 1px solid var(--card-border);
+      padding-top: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    footer a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    footer a:hover {
+      color: var(--accent-warm);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Glow Backgrounds -->
+  <div class="glow-1"></div>
+  <div class="glow-2"></div>
+
+  <div class="container">
+    
+    <!-- Top Navigation -->
+    <header>
+      <a href="#" class="brand">
+        <span class="brand-dot"></span>
+        amittal.dev
+      </a>
+      <div class="status-badge">
+        <span class="pulse"></span>
+        Building in public
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <main>
+      <section class="hero">
+        <h1>Hey, I'm <span class="text-gradient">Armaan Mittal</span>.</h1>
+        <p>
+          I'm a software engineer passionate about high-performance backends, distributed systems, and clean UI engineering. Crafting full-stack projects and fine-tuning server architectures.
+        </p>
+        <div class="social-links">
+          <a href="mailto:me@amittal.dev" class="btn btn-primary">
+            <i data-lucide="mail" style="width: 18px; height: 18px;"></i>
+            Get in Touch
+          </a>
+          <a href="https://github.com" target="_blank" class="btn btn-secondary">
+            <i data-lucide="github" style="width: 18px; height: 18px;"></i>
+            GitHub
+          </a>
+        </div>
+      </section>
+
+      <!-- Projects Section -->
+      <section>
+        <div class="section-title">
+          <i data-lucide="sparkles" style="width: 16px; height: 16px; color: var(--accent-warm);"></i>
+          Upcoming Projects
+        </div>
+        
+        <div class="projects-grid">
+          
+          <!-- Project Card 1 -->
+          <div class="project-card">
+            <div class="project-header">
+              <h2 class="project-title">System Infrastructure</h2>
+              <span class="coming-soon-pill">In Progress</span>
+            </div>
+            <p class="project-desc">
+              Containerized microservice architecture running on self-hosted cloud infrastructure with automated Nginx reverse proxy routing.
+            </p>
+            <div class="tags">
+              <span class="tag">Docker</span>
+              <span class="tag">Nginx</span>
+              <span class="tag">Oracle Cloud</span>
+            </div>
+          </div>
+
+          <!-- Project Card 2 -->
+          <div class="project-card">
+            <div class="project-header">
+              <h2 class="project-title">Full-Stack Web App</h2>
+              <span class="coming-soon-pill">Coming Soon</span>
+            </div>
+            <p class="project-desc">
+              A high-performance full-stack web application with instant API response handling, structured caching, and sleek UI components.
+            </p>
+            <div class="tags">
+              <span class="tag">TypeScript</span>
+              <span class="tag">React</span>
+              <span class="tag">Node.js</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <div>&copy; <span id="year"></span> Armaan Mittal. All rights reserved.</div>
+      <div>Hosted on Vercel &bull; Secured with SSL</div>
+    </footer>
+
+  </div>
+
+  <!-- Initialize Lucide Icons & Auto-year -->
+  <script>
+    lucide.createIcons();
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
