@@ -1,23 +1,30 @@
-// <vault-3d seed ring hue state> — the door on the entrance screen.
-// state: locked | keyed | open. Setting "open" plays the unlock once.
+// <vault-3d seed ring hue state opened-at> — the door on the entrance screen.
+// state: locked | keyed | open. Setting "open" plays the unlock once, timed from opened-at
+// (a performance.now() time) so the page's CSS and sound share its clock; without it,
+// from the moment the attribute changed. Fires a bubbling 'scene-ready' after its first
+// frame, and renders only while something on it changes.
 import * as THREE from 'three'
 import { disposeTree, releaseRenderer, sceneUnavailable, still, watchContext } from './shared.js'
+import { SWING, doorPose } from '../lib/unlock'
 
-const clamp = x => Math.max(0, Math.min(1, x));
-const ease = t => t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+// The unlock has settled once the door stops swinging.
+const SETTLED = SWING.at + SWING.dur + .05;
 
 export class Vault3D extends HTMLElement {
-  static get observedAttributes(){ return ['seed','ring','hue','state']; }
+  static get observedAttributes(){ return ['seed','ring','hue','state','opened-at']; }
   connectedCallback(){
     this.style.display='block'; this.style.width='100%'; this.style.height='100%';
     this.alive = true; this.mx = 0; this.my = 0;
-    if (this.renderer) return;
+    if (this.renderer){ this.wake(); return; }
     try { this.init(THREE); } catch (e) { sceneUnavailable(this, e); }
   }
   disconnectedCallback(){
-    this.alive = false; cancelAnimationFrame(this.raf);
+    this.alive = false; cancelAnimationFrame(this.raf); this.raf = 0;
     window.removeEventListener('pointermove', this.onMove);
+    document.removeEventListener('visibilitychange', this.onVisible);
     if (this.ro) this.ro.disconnect();
+    if (this.io) this.io.disconnect();
+    if (this.mo) this.mo.disconnect();
     if (this.unwatch) this.unwatch();
     disposeTree(this.scene); this.scene = null;
     if (this.renderer){ releaseRenderer(this.renderer); this.renderer = null; this.ready = false; }
@@ -25,6 +32,14 @@ export class Vault3D extends HTMLElement {
   attributeChangedCallback(n, o, v){
     if (n==='state'){ if (v==='open' && o!=='open') this.openAt = performance.now(); if (v!=='open') this.openAt = null; }
     if (this.ready && (n==='seed' || n==='hue')) this.applySeed();
+    this.wake();
+  }
+  /** When the unlock started: the page's shared timestamp if it gave one. */
+  get openedAt(){ const a = parseFloat(this.getAttribute('opened-at')); return isFinite(a) ? a : this.openAt; }
+  /** Asks for a frame, unless one is already coming or nobody could see it. */
+  wake(){
+    if (!this.alive || !this.ready || this.raf || !this.visible || document.hidden) return;
+    this.raf = requestAnimationFrame(this.tick);
   }
   init(T){
     this.T = T;
@@ -79,39 +94,54 @@ export class Vault3D extends HTMLElement {
     kh.add(new T.Mesh(new T.CircleGeometry(.2,48), brass));
     const c = new T.Mesh(new T.CircleGeometry(.075,32), black); c.position.set(0,.08,.002); kh.add(c);
     const sl = new T.Mesh(new T.PlaneGeometry(.06,.2), black); sl.position.set(0,-.04,.002); kh.add(sl);
-    this.onMove = e => { const b = this.getBoundingClientRect(); this.mx = Math.max(-1,Math.min(1,((e.clientX-b.left)/b.width-.5)*2)); this.my = Math.max(-1,Math.min(1,((e.clientY-b.top)/b.height-.5)*2)); };
+    // The pointer tilts the door a little. Under reduced motion it stays square, so no frames are needed.
+    this.onMove = e => { const b = this.getBoundingClientRect(); this.mx = Math.max(-1,Math.min(1,((e.clientX-b.left)/b.width-.5)*2)); this.my = Math.max(-1,Math.min(1,((e.clientY-b.top)/b.height-.5)*2)); if (!still()) this.wake(); };
     window.addEventListener('pointermove', this.onMove);
-    this.ro = new ResizeObserver(() => { const W=this.clientWidth, H=this.clientHeight; if(!W||!H) return; r.setSize(W,H); cam.aspect=W/H; cam.updateProjectionMatrix(); });
+    // Resizing clears the canvas, so it is redrawn in the same frame.
+    this.ro = new ResizeObserver(() => { const W=this.clientWidth, H=this.clientHeight; if(!W||!H) return; r.setSize(W,H); cam.aspect=W/H; cam.updateProjectionMatrix(); if (this.drawn) this.draw(performance.now()); });
     this.ro.observe(this);
-    this.ready = true; this.applySeed();
-    if (this.getAttribute('state')==='open' && !this.openAt) this.openAt = performance.now();
-    const tick = now => {
-      this.raf = requestAnimationFrame(tick);
-      const calm = still();
-      const ring = (+this.getAttribute('ring')||0) * Math.PI/180;
-      const st = this.getAttribute('state') || 'locked';
-      let dial = -ring, wheel = 0, swing = 0, g = 0, tilt = calm ? 0 : 1;
-      if (this.openAt){
-        const e = calm ? 10 : (now - this.openAt)/1000;
-        dial = -ring + Math.PI*4*ease(clamp(e/.7));
-        wheel = -Math.PI*1.25*ease(clamp((e-.2)/.6));
-        swing = -1.75*ease(clamp((e-.8)/.9));
-        g = clamp((e-.7)/.5); tilt = calm ? 0 : 1 - clamp(e/.4);
-      } else if (st==='keyed' && !calm) dial = -ring + Math.sin(now/900)*.03;
-      this.dial.rotation.z = dial; this.wheel.rotation.z = wheel; this.pivot.rotation.y = swing;
-      this.glowMat.color.copy(this.glowBase).multiplyScalar(.04 + .96*g);
-      this.glowLight.intensity = g*10;
-      this.root.rotation.y += (this.mx*.1*tilt - this.root.rotation.y)*.06;
-      this.root.rotation.x += (this.my*.08*tilt - this.root.rotation.x)*.06;
-      r.render(scene, cam);
+    this.visible = true;
+    this.io = new IntersectionObserver(es => { this.visible = es[es.length-1].isIntersecting; this.wake(); }); this.io.observe(this);
+    this.onVisible = () => this.wake(); document.addEventListener('visibilitychange', this.onVisible);
+    this.mo = new MutationObserver(() => this.wake()); this.mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-motion'] });
+    r.domElement.addEventListener('webglcontextrestored', () => this.wake());
+    this.tick = now => {
+      this.raf = 0;
+      if (!this.renderer) return;
+      if (this.draw(now)) this.wake();
+      if (!this.drawn){ this.drawn = true; this.dispatchEvent(new CustomEvent('scene-ready', { bubbles: true })); }
     };
-    this.raf = requestAnimationFrame(tick);
+    if (this.getAttribute('state')==='open' && !this.openAt) this.openAt = performance.now();
+    this.ready = true; this.applySeed();
+  }
+  /** Poses and renders the door at time `now`. Returns whether anything is still moving. */
+  draw(now){
+    const calm = still();
+    const ring = +this.getAttribute('ring')||0;
+    const st = this.getAttribute('state') || 'locked', openAt = st==='open' ? this.openedAt : null;
+    let pose = doorPose(0, ring), tilt = calm ? 0 : 1, moving = false;
+    if (openAt != null){
+      const e = calm ? 10 : Math.max(0, (now - openAt)/1000);
+      pose = doorPose(e, ring); tilt = calm ? 0 : 1 - Math.min(1, e/.4);
+      moving = e < SETTLED;
+    } else if (st==='keyed' && !calm){ pose.dial += Math.sin(now/900)*.03; moving = true; }
+    this.dial.rotation.z = pose.dial; this.wheel.rotation.z = pose.wheel; this.pivot.rotation.y = pose.swing;
+    this.glowMat.color.copy(this.glowBase).multiplyScalar(.04 + .96*pose.glow);
+    this.glowLight.intensity = pose.glow*10;
+    // The door leans toward the pointer and eases back; under reduced motion it simply stands square.
+    const rot = this.root.rotation, ty = this.mx*.1*tilt, tx = this.my*.08*tilt;
+    if (!calm){ rot.y += (ty - rot.y)*.06; rot.x += (tx - rot.x)*.06; }
+    if (!calm && (Math.abs(ty - rot.y) > 1e-4 || Math.abs(tx - rot.x) > 1e-4)) moving = true;
+    else { rot.y = ty; rot.x = tx; }
+    this.renderer.render(this.scene, this.cam);
+    return moving;
   }
   applySeed(){
     const T = this.T, seed = this.getAttribute('seed') || '0000000000000000';
     const hue = +this.getAttribute('hue') || 40;
     this.glowBase = new T.Color().setHSL(hue/360, .55, .72);
     this.glowLight.color.copy(this.glowBase);
+    this.wake();
     while (this.bolts.children.length){ const b = this.bolts.children[0]; b.geometry.dispose(); this.bolts.remove(b); }
     const n = [8,10,12,16][parseInt(seed.slice(-2),16) % 4];
     for (let i=0;i<n;i++){

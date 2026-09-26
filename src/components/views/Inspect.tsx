@@ -41,6 +41,7 @@ export function Inspect() {
   const layerIdx = useArchive(s => s.layer)
   const log = useArchive(s => s.log)
   const sound = useArchive(s => s.sound)
+  const drone = useArchive(s => s.drone)
   const eggs = useArchive(s => s.eggs)
   const { setLayer, go, lockdown } = useArchive.getState()
   const reduced = useReducedMotion()
@@ -102,7 +103,7 @@ export function Inspect() {
           ['INTERACTIONS LOGGED', String(log).padStart(2, '0')],
           ['3D', sceneOk ? 'WEBGL' : 'UNAVAILABLE'],
           ['MOTION', reduced ? 'REDUCED' : 'FULL'],
-          ['AUDIO', sound ? `${d.base} HZ · CHORD ${d.chord + 1}` : 'MUTED'],
+          ['AUDIO', !sound ? 'MUTED' : drone ? `DRONE · ${d.base} HZ · CHORD ${d.chord + 1}` : 'EFFECTS · DRONE OFF'],
           ['STORAGE', 'THIS BROWSER ONLY'],
         ]} />
         <div className="mono" style={{ display: 'flex', flexDirection: 'column', fontSize: 11 }}>

@@ -70,6 +70,13 @@ export function Project() {
         <div className="kicker">{CAT_LABEL[proj.cat]} · {proj.year} · WORKING DRAWING</div>
         <h1 className="stencil" style={{ fontWeight: 800, fontSize: 'clamp(40px,11vw,88px)', lineHeight: .85 }}>{proj.name}</h1>
         <p style={{ fontSize: 21, fontStyle: 'italic', color: 'var(--muted)' }}>{proj.tag}</p>
+        {(proj.repo || proj.live) && (
+          <div className="mono" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 4, fontSize: 10, letterSpacing: '.12em' }}>
+            {proj.live && <a href={proj.live} target="_blank" rel="noopener" title={proj.live} style={{ padding: '8px 12px', background: 'var(--ink)', color: 'var(--bg)', textDecoration: 'none' }}>OPEN LIVE ↗</a>}
+            {proj.repo && <a href={proj.repo} target="_blank" rel="noopener" title={proj.repo} style={{ padding: '8px 12px', border: '1px solid var(--ink)', textDecoration: 'none' }}>SOURCE · GITHUB ↗</a>}
+          </div>
+        )}
+        {!proj.repo && proj.sourceNote && <span className="mono" style={{ fontSize: 10, letterSpacing: '.12em', color: 'var(--muted)', paddingTop: 4 }}>{proj.sourceNote}</span>}
       </div>
       <div role="group" aria-label="Depth" style={{ display: 'flex', flexWrap: 'nowrap', border: '1px solid var(--ink)', alignSelf: 'flex-start', maxWidth: '100%', overflowX: 'auto' }}>
         {DEPTHS.map(([label, time], i) => {
@@ -136,6 +143,7 @@ export function Project() {
           </section>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <h2 style={{ ...levelLabel, paddingBottom: 4 }}>KNOWN FAILURES · INCIDENT LOG</h2>
+            {proj.fails.length === 0 && <p style={{ fontSize: 17, fontStyle: 'italic', color: 'var(--muted)' }}>{proj.sourceNote ? 'The incident log is filed with the private source.' : 'No incidents filed.'}</p>}
             {proj.fails.map((f, i) => {
               const open = openFail === i
               const rows = [['SYMPTOM', f.symptom], ['INVESTIGATION', f.investigation], ['SOLUTION', f.solution], ['RESULT', f.result]]

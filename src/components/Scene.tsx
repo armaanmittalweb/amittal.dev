@@ -26,9 +26,10 @@ export function Archive3D({ mode, mat, hue, data, autoHeight }: { mode: ArchiveM
   return <archive-3d mode={mode} mat={mat} hue={String(hue)} data={JSON.stringify(data)} aria-hidden="true" style={autoHeight ? grow : fill} />
 }
 
-export function Vault3D({ seed, ring, hue, state }: { seed: string; ring: number; hue: number; state: 'locked' | 'keyed' | 'open' }) {
+/** The vault door. `openedAt` (a performance.now() time) is when the unlock started, so the door keeps the page's clock. */
+export function Vault3D({ seed, ring, hue, state, openedAt }: { seed: string; ring: number; hue: number; state: 'locked' | 'keyed' | 'open'; openedAt: number | null }) {
   if (useScene()) return null
-  return <vault-3d seed={seed} ring={String(ring)} hue={String(hue)} state={state} aria-hidden="true" style={fill} />
+  return <vault-3d seed={seed} ring={String(ring)} hue={String(hue)} state={state} opened-at={openedAt == null ? undefined : String(openedAt)} aria-hidden="true" style={fill} />
 }
 
 /** One line at the top of the Core when 3D is off, so the plainer layouts don't look like a bug. */

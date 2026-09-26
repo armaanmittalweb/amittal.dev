@@ -1,6 +1,7 @@
 import { CABINET, MATERIAL, PROJECTS } from '../../data/content'
 import { useIsDesk } from '../../hooks'
 import { derive } from '../../lib/seed'
+import { sfx } from '../../lib/sfx'
 import { useArchive } from '../../store'
 import { useSceneAvailable } from '../../lib/scene'
 import { Archive3D } from '../Scene'
@@ -13,7 +14,7 @@ function DrawerList() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1.5px solid var(--ink)' }}>
       {CABINET.map(([num, label, key, mat, desc]) => (
-        <button key={key} type="button" onClick={() => openKey(key)} className="hover-shade"
+        <button key={key} type="button" onClick={() => { sfx.drawerThunk(); openKey(key) }} className="hover-shade"
           style={{ display: 'grid', gridTemplateColumns: '34px 1fr auto', gap: 12, alignItems: 'baseline', textAlign: 'left', padding: '12px 4px', background: 'transparent', border: 0, borderBottom: '1px solid var(--line)', color: 'var(--ink)', cursor: 'pointer' }}>
           <span className="mono" style={{ fontSize: 10, color: 'var(--muted)' }}>{num}</span>
           <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -96,7 +97,7 @@ export function Hub() {
                 </div>
               )}
               {results && results.length === 0 && (
-                <div style={{ borderTop: '1.5px solid var(--ink)', padding: '14px 16px', fontStyle: 'italic', fontSize: 17, color: 'var(--muted)' }}>No records match. Try EEG, RAG, transformers or language.</div>
+                <div style={{ borderTop: '1.5px solid var(--ink)', padding: '14px 16px', fontStyle: 'italic', fontSize: 17, color: 'var(--muted)' }}>No records match. Try RAG, speech, low latency or React.</div>
               )}
               {secret && (
                 <div style={{ borderTop: '1.5px solid var(--ink)', padding: 16, display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>

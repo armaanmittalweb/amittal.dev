@@ -1,9 +1,11 @@
 import { useEffect, useRef, type ComponentType } from 'react'
 import { MATERIAL, NAV, OBJECTIVES, TARGETS, type View } from '../data/content'
 import { useHeaderHeight, useSidebarLayout } from '../hooks'
+import { usePrimeAudioOnPress } from '../lib/sfx'
 import { useArchive } from '../store'
 import { MisfiledNote } from './ui'
 import { MotionToggle } from './MotionToggle'
+import { DroneToggle, SoundToggle } from './SoundToggle'
 import { SceneNotice } from './Scene'
 import { Capabilities } from './views/Capabilities'
 import { Colophon } from './views/Colophon'
@@ -67,8 +69,7 @@ function PathList({ big }: { big?: boolean }) {
 function DeskHeader() {
   const { visited, done, doneText, mat } = useCoreState()
   const seed = useArchive(s => s.seed)
-  const sound = useArchive(s => s.sound)
-  const { logoClick, toggleSound, inspect, goFast } = useArchive.getState()
+  const { logoClick, inspect, goFast } = useArchive.getState()
   const ref = useRef<HTMLElement>(null)
   useHeaderHeight(ref)
   return (
@@ -76,7 +77,7 @@ function DeskHeader() {
       <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
         <button type="button" onClick={logoClick} className="stencil" title="Back to the Core" style={{ background: 'transparent', border: 0, padding: 0, color: 'inherit', cursor: 'pointer', fontWeight: 800, fontSize: 20, letterSpacing: '.08em' }}>AMITTAL.DEV</button>
         <span className="hdr-seed" style={{ color: 'var(--muted)' }}>SEED <span style={{ color: 'var(--accent)' }}>{seed}</span></span>
-        <Materials current={mat} pad="3px 7px" />
+        <span className="hdr-materials"><Materials current={mat} pad="3px 7px" /></span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span className="hdr-records-label" title="Each tick is one thing to find: a drawer, a project, a broken pipeline, a decision. Your report in Drawer 07 is built from these." style={{ color: 'var(--muted)', whiteSpace: 'nowrap', cursor: 'help' }}>RECORDS RECOVERED</span>
@@ -86,7 +87,8 @@ function DeskHeader() {
         <span aria-hidden="true" style={{ whiteSpace: 'nowrap' }}>{doneText}</span>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" className="hbtn" onClick={toggleSound}>{sound ? 'SOUND · ON' : 'SOUND · OFF'}</button>
+        <SoundToggle className="hbtn" />
+        <DroneToggle className="hbtn" />
         <button type="button" className="hbtn" onClick={inspect}>HOW THIS WORKS</button>
         <button type="button" className="hbtn" onClick={goFast}>ESC · EXIT</button>
       </div>
@@ -98,9 +100,8 @@ function MobileHeader() {
   const { visited, done, doneText, mat } = useCoreState()
   const view = useArchive(s => s.view)
   const seed = useArchive(s => s.seed)
-  const sound = useArchive(s => s.sound)
   const menuOpen = useArchive(s => s.menuOpen)
-  const { logoClick, toggleMenu, go, toggleSound, inspect, goFast } = useArchive.getState()
+  const { logoClick, toggleMenu, go, inspect, goFast } = useArchive.getState()
   const { obj } = useCoreState()
   const ref = useRef<HTMLElement>(null)
   const strip = useRef<HTMLElement>(null)
@@ -147,7 +148,8 @@ function MobileHeader() {
             <PathList big />
           </div>
           <div className="mono" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <button type="button" onClick={toggleSound} style={menuBtn}>{sound ? 'SOUND · ON' : 'SOUND · OFF'}</button>
+            <SoundToggle style={menuBtn} />
+            <DroneToggle style={menuBtn} />
             <MotionToggle style={menuBtn} />
             <button type="button" onClick={inspect} style={menuBtn}>HOW THIS WORKS</button>
             <button type="button" onClick={goFast} style={menuBtn}>EXIT TO FAST ACCESS</button>
@@ -207,6 +209,7 @@ function NextStep() {
 
 export function Core() {
   const sidebar = useSidebarLayout()
+  usePrimeAudioOnPress()
   const view = useArchive(s => s.view)
   const View = VIEWS[view] || Hub
   return (

@@ -14,8 +14,13 @@ export function Research() {
   const sceneOk = useSceneAvailable()
   const desk = useIsDesk()
   // A frame tapped on the reel opens its record in the list; scroll just enough to show it.
+  // Returning to the drawer with a record still open starts at the top, not at the record.
   const rows = useRef<(HTMLDivElement | null)[]>([])
-  useEffect(() => { if (openRes != null) reveal(rows.current[openRes]) }, [openRes])
+  const shown = useRef(openRes)
+  useEffect(() => {
+    if (openRes != null && openRes !== shown.current) reveal(rows.current[openRes])
+    shown.current = openRes
+  }, [openRes])
   const sprockets = { background: 'repeating-linear-gradient(180deg,transparent 0 8px,var(--line) 8px 16px)' }
   return (
     <div data-screen-label="10 Research" style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>

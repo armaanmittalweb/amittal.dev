@@ -43,7 +43,8 @@ export function derive(seed: string): Derived {
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]] }
   const base = 48 + Math.round(rng() * 30), chord = Math.floor(rng() * CHORDS.length)
   const misfiled = MISFILE_DRAWERS[Math.floor(rng() * 3)]
-  const rots = Array.from({ length: 12 }, () => +(rng() * 10 - 5).toFixed(1))
+  // The Lab's stamps read rots[7 + i], so there is one for every project.
+  const rots = Array.from({ length: 7 + PROJECTS.length }, () => +(rng() * 10 - 5).toFixed(1))
   const d = { hue, ring, tagRot, order, base, chord, misfiled, rots }
   cache.set(seed, d)
   return d

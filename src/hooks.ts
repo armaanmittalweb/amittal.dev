@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore, type RefObject } from 'react'
 import { isReducedMotion, onSystemMotionChange, systemPrefersReduced } from './lib/motion'
+import { sfx } from './lib/sfx'
 import { useArchive } from './store'
 
 /** Exact viewport size, at most one update per frame. Only the Entrance needs this; everything else uses useIsDesk. */
@@ -76,6 +77,9 @@ export function useMotionAttribute(reduced: boolean) {
 
 const KONAMI = 'ArrowUp ArrowUp ArrowDown ArrowDown ArrowLeft ArrowRight ArrowLeft ArrowRight b a'
 
+const editable = (el: EventTarget | null): el is HTMLElement =>
+  el instanceof HTMLElement && (el.isContentEditable || el.matches('input, textarea, select'))
+
 /** Page-wide listeners: keyboard shortcuts, easter eggs, and events from the 3D views. */
 export function useGlobalListeners() {
   useEffect(() => {
@@ -88,7 +92,13 @@ export function useGlobalListeners() {
 
     const onKey = (e: KeyboardEvent) => {
       lastAct = Date.now()
+      // Keys an IME is composing with belong to the text, not to shortcuts or typed eggs.
+      if (e.isComposing || e.keyCode === 229) return
       if (e.key === 'Escape') {
+        if (e.defaultPrevented) return
+        // In a field Escape clears autocomplete or the text, so it only lets go of the
+        // field; a second press is the shortcut.
+        if (editable(e.target)) { e.target.blur(); return }
         const s = store()
         if (s.menuOpen) s.toggleMenu()
         else if (s.screen === 'core' || s.screen === 'objective') s.goFast()
@@ -121,6 +131,7 @@ export function useGlobalListeners() {
       const d = (e as CustomEvent).detail || {}
       const s = store()
       if (d.type === 'open') s.openKey(d.key)
+      else if (d.type === 'drawer') sfx.drawer(d.z)
       else if (d.type === 'node') s.setNode(d.id)
       else if (d.type === 'stage') s.toggleStage(d.i)
       else if (d.type === 'layer') s.setLayer(d.i)

@@ -57,7 +57,7 @@ export function FactRow({ k, v, cols, size = 18 }: { k: string; v: ReactNode; co
   return (
     <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 16, padding: '13px 0', borderBottom: '1px solid var(--line)' }}>
       <span className="label" style={{ paddingTop: 4 }}>{k}</span>
-      <span style={{ fontSize: size }}>{v}</span>
+      <span style={{ fontSize: size, minWidth: 0, overflowWrap: 'anywhere' }}>{v}</span>
     </div>
   )
 }

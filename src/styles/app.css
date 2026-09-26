@@ -113,9 +113,11 @@ button { font: inherit }
 .a3d-tag[data-s~='dim'] { opacity: .45 }
 .a3d-pick:hover b { text-decoration: underline; text-underline-offset: 3px }
 
-/* The desktop header drops its least useful words as the window narrows, so it stays on one row. */
-@media (max-width: 1399px) { .hdr-records-label { display: none } }
-@media (max-width: 1199px) { .hdr-seed { display: none } }
+/* The desktop header drops its least useful words as the window narrows, so it stays on one row.
+   (The material strip goes last: the page's own colours already say paper, draft or film.) */
+@media (max-width: 1439px) { .hdr-records-label { display: none } }
+@media (max-width: 1299px) { .hdr-seed { display: none } }
+@media (max-width: 1119px) { .hdr-materials { display: none } }
 
 /* Reduced motion: every transition and animation completes instantly. */
 [data-motion='reduced'] *,

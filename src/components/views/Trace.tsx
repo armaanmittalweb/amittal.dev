@@ -7,12 +7,13 @@ import { Stage, StageHint } from '../Stage'
 import { DrawerHead, OutlineButton } from '../ui'
 
 const neighbours = (id: string) => EDGES.flatMap(([a, b]) => a === id ? [b] : b === id ? [a] : [])
-  .map(n => NODES.find(x => x.id === n)!.label)
+  .flatMap(n => NODES.filter(x => x.id === n).map(x => x.label))
 
 function useNodeActions() {
   const { openProject, go } = useArchive.getState()
-  const goLabel = (n: TraceNode) => 'OPEN ' + (n.project ? PROJECTS.find(p => p.id === n.project)!.name.toUpperCase() : n.view!.toUpperCase())
-  const open = (n: TraceNode) => n.project ? openProject(n.project) : go(n.view!)
+  const target = (n: TraceNode) => (n.project && PROJECTS.find(p => p.id === n.project)?.name) || n.view || 'hub'
+  const goLabel = (n: TraceNode) => 'OPEN ' + target(n).toUpperCase()
+  const open = (n: TraceNode) => n.project ? openProject(n.project) : go(n.view || 'hub')
   return { goLabel, open }
 }
 
@@ -79,7 +80,7 @@ export function Trace() {
 
   return (
     <div data-screen-label="07 Trace" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-      <DrawerHead kicker="DRAWER 04 · TRACE · 2023–2025" title="TRACE"
+      <DrawerHead kicker="DRAWER 04 · TRACE · 2022–2026" title="TRACE"
         lead={`The work as a network. Nodes are inked in as you explore what they represent. ${NODES.filter(lit).length} of ${NODES.length} inked.`}
         leadStyle={{ maxWidth: 'none' }} />
       {sceneOk && (

@@ -4,9 +4,10 @@ import {
   EGGS, MATERIAL, PROJECTS, RESEARCH, SECRETS,
   type Category, type Secret, type View,
 } from './data/content'
-import { setDroneMaterial, startDrone, stopDrone } from './lib/audio'
+import { cancelAll, primeAudio, setDroneMaterial, setSoundEnabled, startDrone, stopDrone, type Handle } from './lib/audio'
 import { isReducedMotion, type MotionPref } from './lib/motion'
 import { newSeed } from './lib/seed'
+import { sfx } from './lib/sfx'
 
 export type Screen = 'entrance' | 'objective' | 'core' | 'fast'
 export interface Toast { kicker?: string; code: string; title: string; body: string }
@@ -28,6 +29,8 @@ interface Persisted {
   eggs: Record<string, true>
   negative: boolean
   motion: MotionPref
+  /** The master switch for every sound, on by default. Sound only ever follows something the visitor did. */
+  sound: boolean
   /** The screen Fast Access was opened from, so leaving it goes back there. */
   fastFrom: Screen | null
 }
@@ -43,7 +46,8 @@ interface Transient {
   menuOpen: boolean
   toast: Toast | null
   glitch: 0 | 1 | 2
-  sound: boolean
+  /** The seed-tuned drone, off until asked for. Needs sound on. */
+  drone: boolean
   query: string
   results: QueryResult[] | null
   secret: Secret | null
@@ -81,6 +85,7 @@ interface Actions {
   runQuery(): void
   findMisfiled(): void
   toggleSound(): void
+  toggleDrone(): void
   toggleMenu(): void
   toggleNegative(): void
   setMotion(m: MotionPref): void
@@ -97,6 +102,7 @@ const PULL_GAP = 800
 const demolished: Record<string, Record<number, true>> = {}
 /** The inspect glitch sequence, cancelled by any other navigation. */
 let glitchTimers: ReturnType<typeof setTimeout>[] = []
+let glitchSound: Handle | null = null
 
 const top = () => window.scrollTo(0, 0)
 
@@ -129,6 +135,7 @@ function changedOnlyStorage<S extends object>(): PersistStorage<S> {
 export const useArchive = create<ArchiveState>()(persist((set, get) => {
   /** Any navigation cancels a glitch that is still on its way to the Inspect page. */
   const cancelGlitch = () => {
+    if (glitchTimers.length) glitchSound?.cancel()
     glitchTimers.forEach(clearTimeout)
     glitchTimers = []
     if (get().glitch) set({ glitch: 0 })
@@ -137,10 +144,10 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
   return {
   screen: 'entrance', seed: null, revoked: null, objective: 'hiring', view: 'hub',
   visited: {}, interest: {}, projectId: null, depth: 1, capId: null, log: 0,
-  found: false, eggs: {}, negative: false, motion: 'system', fastFrom: null,
+  found: false, eggs: {}, negative: false, motion: 'system', fastFrom: null, sound: true,
 
   removed: null, nodeId: null, openWhy: null, openFail: null, openRes: null, layer: 0,
-  cabHover: null, menuOpen: false, toast: null, glitch: 0, sound: false,
+  cabHover: null, menuOpen: false, toast: null, glitch: 0, drone: false,
   query: '', results: null, secret: null, logo: 0, traceList: false,
 
   visit(key, cat, weight = 1) {
@@ -188,6 +195,7 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     // The inversion flash is exactly what reduced motion asks us not to do.
     if (isReducedMotion()) return land()
     set({ glitch: 1 })
+    glitchSound = sfx.glitch()
     glitchTimers = [
       setTimeout(() => set({ glitch: 2 }), 140),
       setTimeout(() => set({ glitch: 1 }), 260),
@@ -195,15 +203,16 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     ]
   },
 
-  issueKey() { set({ seed: newSeed(), revoked: null }) },
+  issueKey() { sfx.keyJingle(); set({ seed: newSeed(), revoked: null }) },
   unlocked() { set({ screen: 'objective' }) },
   pickObjective(id) { cancelGlitch(); set({ objective: id, screen: 'core', view: 'hub' }); top() },
-  // Fast Access is the no-frills page, so the drone stops there.
+  // Fast Access is the no-frills page: the drone stops there and nothing plays.
   goFast() {
     cancelGlitch()
     stopDrone()
+    cancelAll()
     const from = get().screen
-    set({ screen: 'fast', fastFrom: from === 'fast' ? get().fastFrom : from, menuOpen: false, sound: false })
+    set({ screen: 'fast', fastFrom: from === 'fast' ? get().fastFrom : from, menuOpen: false, drone: false })
     top()
   },
   leaveFast() {
@@ -218,6 +227,9 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     const e = EGGS.find(x => x.id === id)
     if (!e) return
     set(s => ({ eggs: { ...s.eggs, [id]: true }, toast: e }))
+    // The idle and tab eggs arrive without the visitor doing anything, so they stay silent;
+    // the lockdown egg arrives with the vault slamming, which says it already.
+    if (id !== 'idle' && id !== 'tab' && id !== 'lockdown') sfx.stamp()
     clearTimeout(toastTimer)
     toastTimer = setTimeout(() => set({ toast: null }), 5200)
   },
@@ -237,9 +249,10 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     const s = get()
     cancelGlitch()
     stopDrone()
+    if (fromLogo) sfx.slam()
     set({
       seed: null, revoked: s.seed || s.revoked || null, logo: 0, visited: {}, interest: {}, log: 0,
-      screen: 'entrance', view: 'hub', results: null, query: '', secret: null, found: false, sound: false,
+      screen: 'entrance', view: 'hub', results: null, query: '', secret: null, found: false, drone: false,
       menuOpen: false, nodeId: null, capId: null, layer: 0, cabHover: null,
     })
     top()
@@ -258,19 +271,20 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     set({ logo: n })
     if (n < 5) get().go('hub')
     else if (n === 5) { get().egg('colophon'); get().go('colophon') }
-    else get().note({ kicker: 'WARNING · HANDLE', code: '0' + (10 - n), title: (10 - n) + ' MORE AND IT LOCKS', body: 'Keep pulling and the vault reseals. Your current key will stop working.' })
+    else { sfx.rattle(); get().note({ kicker: 'WARNING · HANDLE', code: '0' + (10 - n), title: (10 - n) + ' MORE AND IT LOCKS', body: 'Keep pulling and the vault reseals. Your current key will stop working.' }) }
   },
 
   toggleStage(i) {
     const s = get(), proj = PROJECTS.find(p => p.id === s.projectId) || PROJECTS[0]
-    if (s.removed === i) return set({ removed: null })
+    if (s.removed === i) { sfx.stageRefit(); return set({ removed: null }) }
+    sfx.stageDrop()
     const pulled: Record<number, true> = { ...demolished[proj.id], [i]: true as const }
     demolished[proj.id] = pulled
     set({ removed: i })
     get().visit('break', proj.cat)
     if (Object.keys(pulled).length === proj.pipeline.length) get().egg('demolition')
   },
-  restore() { set({ removed: null }) },
+  restore() { if (get().removed !== null) sfx.stageRefit(); set({ removed: null }) },
 
   setDepth(d) {
     set({ depth: d, removed: null })
@@ -288,6 +302,7 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     get().visit('fail', PROJECTS.find(x => x.id === get().projectId)?.cat)
   },
   toggleRes(i) {
+    if (get().openRes !== i) sfx.shutter()
     set(s => ({ openRes: s.openRes === i ? null : i }))
     const r = RESEARCH[i]
     if (r) get().visit('res:' + r.id, 'research')
@@ -319,10 +334,16 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
   findMisfiled() { set({ found: true }); get().visit('misfiled', 'interface'); get().egg('misfiled') },
 
   toggleSound() {
-    const s = get()
-    if (s.sound) { stopDrone(); set({ sound: false }); return }
-    startDrone(s.seed || '0000000000000000', s.screen === 'core' ? MATERIAL[s.view] : 'paper')
+    if (get().sound) { stopDrone(); set({ sound: false, drone: false }); return }
     set({ sound: true })
+    primeAudio()
+  },
+  toggleDrone() {
+    const s = get()
+    if (s.drone) { stopDrone(); set({ drone: false }); return }
+    if (!s.sound) set({ sound: true })
+    startDrone(s.seed || '0000000000000000', s.screen === 'core' ? MATERIAL[s.view] : 'paper')
+    set({ drone: true })
   },
   toggleMenu() { set(s => ({ menuOpen: !s.menuOpen })) },
   toggleNegative() { set(s => ({ negative: !s.negative })) },
@@ -335,6 +356,10 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
   partialize: (s): Persisted => ({
     screen: s.screen, seed: s.seed, revoked: s.revoked, objective: s.objective, view: s.view,
     visited: s.visited, interest: s.interest, projectId: s.projectId, depth: s.depth, capId: s.capId,
-    log: s.log, found: s.found, eggs: s.eggs, negative: s.negative, motion: s.motion, fastFrom: s.fastFrom,
+    log: s.log, found: s.found, eggs: s.eggs, negative: s.negative, motion: s.motion, fastFrom: s.fastFrom, sound: s.sound,
   }),
 }))
+
+// The audio engine follows the master switch, including the value restored from storage.
+setSoundEnabled(useArchive.getState().sound)
+useArchive.subscribe((s, prev) => { if (s.sound !== prev.sound) setSoundEnabled(s.sound) })

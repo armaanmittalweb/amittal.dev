@@ -16,6 +16,9 @@ const FH='"Big Shoulders Stencil Display", sans-serif', FM='"Martian Mono", mono
 const emit=d=>window.dispatchEvent(new CustomEvent('archive3d',{detail:d}));
 // With reduced motion every view is shown at a fixed moment after its intro has finished.
 const STILL_T=30;
+// Nothing moves by itself then, so a view draws this many frames after something changes
+// (see wake), and after that only while the easing in frame_* is still moving something.
+const SETTLE=30;
 
 export class Archive3D extends HTMLElement{
   static get observedAttributes(){ return ['data','mat','hue','mode']; }
@@ -25,8 +28,8 @@ export class Archive3D extends HTMLElement{
     (document.fonts?document.fonts.ready:Promise.resolve()).then(()=>{ if(this.alive&&!this.r) this.init(THREE); }).catch(e=>sceneUnavailable(this,e));
   }
   disconnectedCallback(){
-    this.alive=false; cancelAnimationFrame(this.raf); clearTimeout(this.openT);
-    if(this.ro) this.ro.disconnect(); if(this.io) this.io.disconnect();
+    this.alive=false; cancelAnimationFrame(this.raf); this.raf=0; clearTimeout(this.openT);
+    if(this.ro) this.ro.disconnect(); if(this.io) this.io.disconnect(); if(this.mo) this.mo.disconnect();
     window.removeEventListener('pointermove',this.onWinMove);
     if(this.unwatch) this.unwatch();
     if(this.overlay){ this.overlay.remove(); this.overlay=null; }
@@ -37,6 +40,7 @@ export class Archive3D extends HTMLElement{
     if(!this.ready||o===v) return;
     const u=this['update_'+this.mode];
     if(n==='data'&&u) u.call(this,this.data); else this.rebuild();
+    this.wake();
   }
   // React 19 assigns props to custom elements as properties when one exists, so these reflect to attributes.
   get mode(){ return this.getAttribute('mode')||'cabinet'; }
@@ -57,7 +61,9 @@ export class Archive3D extends HTMLElement{
     this.overlay=document.createElement('div'); this.overlay.style.cssText='position:absolute;inset:0;pointer-events:none;overflow:hidden';
     this.appendChild(this.overlay); this.tags=[];
     this.cam=new T.PerspectiveCamera(32,1,.1,100);
-    this.ray=new T.Raycaster(); this.ptr=new T.Vector2(-9,-9);
+    // Lines (block outlines, leader lines) would otherwise catch any ray within a whole world unit
+    // and hand the pick to the neighbouring block.
+    this.ray=new T.Raycaster(); this.ray.params.Line.threshold=.01; this.ptr=new T.Vector2(-9,-9);
     const cv=r.domElement; cv.draggable=false; cv.setAttribute('draggable','false');
     Object.assign(cv.style,{userSelect:'none',webkitUserSelect:'none',webkitUserDrag:'none',touchAction:'pan-y',webkitTapHighlightColor:'transparent'});
     this.style.userSelect='none'; this.style.webkitUserSelect='none';
@@ -70,22 +76,40 @@ export class Archive3D extends HTMLElement{
     cv.addEventListener('pointerup',e=>{ const d=end(e); if(d&&d.moved<6){ setPtr(e); const hit=this.pick(); if(hit){ const f=this['pick_'+this.mode]; if(f) f.call(this,hit.userData.pick,this.lastHit); } } if(e.pointerType!=='mouse') this.ptr.set(-9,-9); });
     cv.addEventListener('pointercancel',e=>{ end(e); this.ptr.set(-9,-9); });
     cv.addEventListener('pointerleave',()=>{ if(!this.drag) this.ptr.set(-9,-9); });
+    ['pointerdown','pointermove','pointerup','pointercancel','pointerleave'].forEach(t=>cv.addEventListener(t,()=>this.wake()));
+    cv.addEventListener('webglcontextrestored',()=>this.wake());
     this.onWinMove=e=>{ const b=this.getBoundingClientRect(); this.mx=Math.max(-1,Math.min(1,((e.clientX-b.left)/b.width-.5)*2)); this.my=Math.max(-1,Math.min(1,((e.clientY-b.top)/b.height-.5)*2)); };
     window.addEventListener('pointermove',this.onWinMove);
     this.ro=new ResizeObserver(()=>this.resize()); this.ro.observe(this);
-    this.visible=true; this.io=new IntersectionObserver(es=>{ this.visible=es[0].isIntersecting; }); this.io.observe(this);
-    this.ready=true; this.rebuild();
-    const tick=now=>{
-      this.raf=requestAnimationFrame(tick);
+    this.visible=true; this.io=new IntersectionObserver(es=>{ this.visible=es[es.length-1].isIntersecting; if(this.visible) this.wake(); }); this.io.observe(this);
+    // The MOTION toggle can change this at any time: full motion starts the loop, reduced draws the still frame.
+    this.mo=new MutationObserver(()=>this.wake()); this.mo.observe(document.documentElement,{attributeFilter:['data-motion']});
+    // Full motion draws every frame while the view is on screen; reduced motion stops once it has settled.
+    this.tick=now=>{
+      this.raf=0;
+      if(!this.visible||!this.scene) return; // the IntersectionObserver wakes it again
       const calm=still();
       const dt=calm?0:Math.min(.05,(now-(this.last||now))/1000); this.last=now;
-      if(!this.visible||!this.scene) return;
       if(!this.t0) this.t0=now;
       this.frame(calm?STILL_T:(now-this.t0)/1000,dt,calm);
       r.render(this.scene,this.cam);
       this.placeTags();
+      const moving=calm&&this.drift()>1e-4; this.settle--;
+      if((!calm||moving||this.settle>0)&&!this.raf) this.raf=requestAnimationFrame(this.tick); // a wake during the frame may have queued one
     };
-    this.raf=requestAnimationFrame(tick);
+    this.ready=true; this.rebuild();
+  }
+  /** Asks for frames after anything that can change the picture: input, data, size, visibility, the motion setting. */
+  wake(){ this.settle=SETTLE; if(!this.raf&&this.tick) this.raf=requestAnimationFrame(this.tick); }
+  /** The largest change in any transform or material since the last call, so reduced motion knows when the easing has landed. */
+  drift(){
+    const a=this.pose||(this.pose=[]); let i=0, m=0;
+    const put=v=>{ const d=Math.abs(v-a[i]); if(d>m) m=d; a[i++]=v; };
+    const mat=x=>{ put(x.opacity); if(x.color){ put(x.color.r); put(x.color.g); put(x.color.b); } };
+    this.scene.traverse(o=>{ const {position:p,rotation:q,scale:s}=o;
+      put(p.x); put(p.y); put(p.z); put(q.x); put(q.y); put(q.z); put(s.x); put(s.y); put(s.z);
+      if(Array.isArray(o.material)) o.material.forEach(mat); else if(o.material) mat(o.material); });
+    a.length=i; return m;
   }
   resize(){
     if(!this.r) return; const w=this.clientWidth,h=this.clientHeight; if(!w||!h) return;
@@ -93,6 +117,7 @@ export class Archive3D extends HTMLElement{
     this.classList.toggle('a3d-compact',w<480);
     this.tags.forEach(t=>{ t.w=0; }); // label font sizes follow the viewport, so re-measure
     if(this.layout) this.layout();
+    this.wake();
   }
   pick(){
     this.lastHit=null;
@@ -144,8 +169,8 @@ export class Archive3D extends HTMLElement{
     if(o.onPick){
       el.classList.add('a3d-pick');
       el.addEventListener('click',o.onPick);
-      el.addEventListener('pointerenter',()=>{ this.tagHover=o.key; });
-      el.addEventListener('pointerleave',()=>{ if(this.tagHover===o.key) this.tagHover=null; });
+      el.addEventListener('pointerenter',()=>{ this.tagHover=o.key; this.wake(); });
+      el.addEventListener('pointerleave',()=>{ if(this.tagHover===o.key) this.tagHover=null; this.wake(); });
     }
     this.overlay.appendChild(el);
     const t={el,anchor,left:o.align==='left',top:!!o.top,w:0,h:0,s:''}; this.tags.push(t); return t;
@@ -209,11 +234,16 @@ export class Archive3D extends HTMLElement{
     this.baseRot={x:0,y:-.42}; this.spinLimit=.55; this.draggable=true;
     this.layout=()=>{ const dist=this.fit(2.6,bodyH*1.18,1); this.cam.position.set(0,bodyH*.62,dist); this.cam.lookAt(0,bodyH*.47,0); };
   }
-  frame_cabinet(t){
+  // Drawers ease toward their target by the same curve at any refresh rate (12% per 60 Hz
+  // frame), so a picked drawer runs out as z = 1.2 - (1.2 - z0)·e^(-t/0.13s): the page's
+  // drawer sound is shaped on that. Reduced motion jumps straight there.
+  frame_cabinet(t,dt){
+    const k=still()?1:1-Math.pow(1-.12,dt*60);
     this.drawers.forEach((dr,i)=>{ let tg=0; if(this.hover===i) tg=.28; if(this.opened===i) tg=1.2;
-      const intro=(1-ease(clamp((t-i*.07)/.7)))*.6; dr.z=lerp(dr.z,tg,.12); dr.g.position.z=dr.z+intro; });
+      const intro=(1-ease(clamp((t-i*.07)/.7)))*.6; dr.z=lerp(dr.z,tg,k); dr.g.position.z=dr.z+intro; });
   }
-  pick_cabinet(i){ if(this.opened!=null) return; this.opened=i; const key=this.drawers[i].it.key; this.openT=setTimeout(()=>emit({type:'open',key}),still()?0:520); }
+  pick_cabinet(i){ if(this.opened!=null) return; this.opened=i; const dr=this.drawers[i], key=dr.it.key;
+    emit({type:'drawer',i,z:dr.z}); this.openT=setTimeout(()=>emit({type:'open',key}),still()?0:520); }
 
   /* ---------- GRAPH (Trace) ---------- */
   build_graph(d){

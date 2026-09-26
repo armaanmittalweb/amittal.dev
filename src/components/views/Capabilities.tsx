@@ -6,12 +6,18 @@ import { DrawerHead, MisfiledStamp } from '../ui'
 
 export function Capabilities() {
   const capId = useArchive(s => s.capId)
-  const { pickCap, openProject } = useArchive.getState()
+  const { pickCap, openProject, go } = useArchive.getState()
   const cap = CAPS.flatMap(g => g.items).find(c => c.id === capId)
   const group = CAPS.find(g => g.items.some(c => c.id === capId))
-  const used = cap ? cap.projects.map(id => PROJECTS.find(x => x.id === id)!) : []
+  const used = cap ? cap.projects.flatMap(id => PROJECTS.filter(x => x.id === id)) : []
+  const at = cap?.at ?? []
   const panel = useRef<HTMLDivElement>(null)
-  useEffect(() => { if (capId) reveal(panel.current) }, [capId])
+  // Only a pick made here scrolls. Coming back to this drawer with a pick still open starts at the top.
+  const shown = useRef(capId)
+  useEffect(() => {
+    if (capId && capId !== shown.current) reveal(panel.current)
+    shown.current = capId
+  }, [capId])
 
   return (
     <div data-screen-label="05 Capabilities" style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
@@ -46,12 +52,17 @@ export function Capabilities() {
                 {used.map(p => (
                   <button key={p.id} type="button" onClick={() => openProject(p.id)} className="hover-shade" style={{ alignSelf: 'flex-start', background: 'transparent', border: '1px solid var(--ink)', color: 'var(--ink)', padding: '7px 12px', cursor: 'pointer', fontSize: 17 }}>{p.name} →</button>
                 ))}
+                {at.map(([label, view]) => (
+                  <button key={label} type="button" onClick={() => go(view)} className="hover-shade" style={{ alignSelf: 'flex-start', background: 'transparent', border: '1px dashed var(--muted)', color: 'var(--ink)', padding: '7px 12px', cursor: 'pointer', fontSize: 17 }}>
+                    {label} <span className="mono" style={{ fontSize: 9, letterSpacing: '.12em', color: 'var(--muted)' }}>· {view === 'research' ? 'RESEARCH' : 'RESUME'}</span> →
+                  </button>
+                ))}
               </div>
             </div>
           )]
         })}
       </div>
-      <p className="sr-only" aria-live="polite">{cap ? `${cap.title}: used in ${used.map(p => p.name).join(' and ')}.` : ''}</p>
+      <p className="sr-only" aria-live="polite">{cap ? `${cap.title}: used in ${[...used.map(p => p.name), ...at.map(a => a[0])].join(', ')}.` : ''}</p>
       <MisfiledStamp drawer="capabilities" rotate={2} align="flex-end" />
     </div>
   )
