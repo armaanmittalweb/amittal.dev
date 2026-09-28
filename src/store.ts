@@ -1,19 +1,19 @@
 import { create } from 'zustand'
 import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
 import {
-  EGGS, MATERIAL, PROJECTS, RESEARCH, SECRETS,
-  type Category, type Secret, type View,
+  EGGS, MATERIAL, OBJECTIVES, PROJECTS, RESEARCH,
+  type Category, type View,
 } from './data/content'
 import { cancelAll, primeAudio, setDroneMaterial, setSoundEnabled, startDrone, stopDrone, type Handle } from './lib/audio'
 import type { MotionPref } from './lib/motion'
 import { newSeed } from './lib/seed'
 import { sfx } from './lib/sfx'
 import { openKeepsake, type Keepsake } from './lib/keepsake'
+import type { Answer, Tone } from './lib/search'
 import { transition } from './lib/transition'
 
 export type Screen = 'entrance' | 'objective' | 'core' | 'fast'
 export interface Toast { kicker?: string; code: string; title: string; body: string }
-export interface QueryResult { id: string; matched: string[] }
 
 interface Persisted {
   screen: Screen
@@ -52,8 +52,10 @@ interface Transient {
   /** The seed-tuned drone, off until asked for. Needs sound on. */
   drone: boolean
   query: string
-  results: QueryResult[] | null
-  secret: Secret | null
+  /** On the objective screen from the Core, choosing again rather than for the first time. */
+  rechoosing: boolean
+  /** The archivist's answer to the last request. */
+  answer: Answer | null
   logo: number
   traceList: boolean
 }
@@ -67,6 +69,8 @@ interface Actions {
   issueKey(): void
   unlocked(): void
   pickObjective(id: string): void
+  /** Back to the objective screen from the Core, to choose again. */
+  changeObjective(): void
   goFast(): void
   leaveFast(): void
   egg(id: string): void
@@ -110,12 +114,6 @@ let glitchSound: Handle | null = null
 
 const top = () => window.scrollTo(0, 0)
 
-const STOP_WORDS = new Set(('a an and any about all are built build by can did do does for from have has how i in into involving ' +
-  'is it me my of on or project projects show that the to use used using what which with work you your').split(' '))
-const tokens = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
-/** A query word matches a token that starts with it, or a token of 3+ letters it starts with ("llms" finds "LLM"). */
-const wordMatches = (w: string, text: string) => tokens(text).some(t => t.startsWith(w) || (t.length >= 3 && w.startsWith(t)))
-
 /** Writes to localStorage only when a persisted field changed, so hover, typing and toasts cost nothing. */
 function changedOnlyStorage<S extends object>(): PersistStorage<S> {
   let last: StorageValue<S> | null = null
@@ -143,22 +141,15 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     glitchSound = null
   }
 
-  /** The keyword search over the projects, and the canned answers. */
-  const search = (raw: string) => {
-    const hit = SECRETS.find(x => x.re.test(raw))
-    if (hit) { set({ secret: hit, results: null }); get().egg(hit.egg || 'query'); return }
-    set({ secret: null })
-    // Filler like "show me projects in" is dropped; a request with nothing left finds nothing.
-    const words = tokens(raw).filter(w => w.length > 1 && !STOP_WORDS.has(w))
-    const results = words.length === 0 ? [] : PROJECTS.map(p => {
-      const matched = p.tags.filter(t => words.some(w => wordMatches(w, t)))
-      const nameHit = words.some(w => wordMatches(w, p.name) || wordMatches(w, p.l1))
-      return { id: p.id, matched, score: matched.length * 2 + (nameHit ? 1 : 0) }
-    }).filter(r => r.score > 0).sort((a, b) => b.score - a.score).map(({ id, matched }) => ({ id, matched }))
-    set({ results })
-    // A keyword search is not evidence of interest in AI, so it counts toward nothing.
+  /** Loads the search engine (its own chunk, fetched on first use) and answers the request. */
+  const search = (raw: string) => import('./lib/search').then(({ ask }) => {
+    if (get().query.trim() !== raw) return // the visitor has typed something else since
+    const answer = ask(raw, get().objective as Tone)
+    set({ answer })
+    if (answer.egg) get().egg(answer.egg)
+    // A request is not evidence of interest in anything, so it counts toward nothing but itself.
     get().visit('query')
-  }
+  })
 
   return {
   screen: 'entrance', seed: null, revoked: null, objective: 'hiring', view: 'hub',
@@ -167,7 +158,7 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
 
   removed: null, nodeId: null, openWhy: null, openFail: null, openRes: null, layer: 0,
   cabHover: null, menuOpen: false, toast: null, drone: false,
-  query: '', results: null, secret: null, logo: 0, traceList: false,
+  query: '', answer: null, rechoosing: false, logo: 0, traceList: false,
 
   visit(key, cat, weight = 1) {
     set(s => {
@@ -194,9 +185,10 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     cancelGlitch()
     setDroneMaterial(MATERIAL.project)
     transition(() => {
-      set({ screen: 'core', view: 'project', projectId: id, depth: 1, removed: null, openWhy: null, openFail: null, menuOpen: false })
+      set({ screen: 'core', view: 'project', projectId: id, depth: (OBJECTIVES.find(o => o.id === get().objective) || OBJECTIVES[0]).depth, removed: null, openWhy: null, openFail: null, menuOpen: false })
       top()
       get().visit('p:' + id, p.cat, 2)
+      if (get().depth === 3) get().visit('depth3', p.cat)
     })
   },
 
@@ -223,7 +215,9 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
 
   issueKey() { sfx.keyJingle(); set({ seed: newSeed(), revoked: null }) },
   unlocked() { set({ screen: 'objective' }) },
-  pickObjective(id) { transition(() => { set({ objective: id, screen: 'core', view: 'hub' }); top() }) },
+  // A researcher finds the first paper already open in the research drawer.
+  pickObjective(id) { transition(() => { set({ objective: id, screen: 'core', view: 'hub', answer: null, rechoosing: false, ...(id === 'research' ? { openRes: 0 } : {}) }); top() }) },
+  changeObjective() { transition(() => { set({ screen: 'objective', menuOpen: false, rechoosing: true }); top() }) },
   // Fast Access is the no-frills page: the drone stops there and nothing plays.
   goFast() {
     cancelGlitch()
@@ -274,7 +268,7 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     transition(() => {
       set({
         seed: null, revoked: s.seed || s.revoked || null, logo: 0, visited: {}, interest: {}, log: 0,
-        screen: 'entrance', view: 'hub', results: null, query: '', secret: null, found: false, drone: false,
+        screen: 'entrance', view: 'hub', answer: null, query: '', found: false, drone: false,
         menuOpen: false, nodeId: null, capId: null, layer: 0, cabHover: null,
       })
       top()
@@ -337,14 +331,15 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
 
   setQuery(q) { set({ query: q }) },
   runQuery() {
-    const raw = get().query.trim().toLowerCase()
-    if (!raw) return set({ secret: null, results: null })
+    const raw = get().query.trim()
+    if (!raw) return set({ answer: null })
     // A short request is first tried as the key to the keepsake (lib/keepsake.ts); it takes
     // a moment to check, and the search waits so nothing flashes up in between.
     if (raw.length <= 12) {
+      void import('./lib/search') // fetched meanwhile, so the answer doesn't wait on both in turn
       openKeepsake(raw).then(note => {
-        if (get().query.trim().toLowerCase() !== raw) return // the visitor has moved on
-        if (note) { set({ query: '', secret: null, results: null }); get().toggleBloom(note) } else search(raw)
+        if (get().query.trim() !== raw) return // the visitor has moved on
+        if (note) { set({ query: '', answer: null }); get().toggleBloom(note) } else search(raw)
       })
       return
     }

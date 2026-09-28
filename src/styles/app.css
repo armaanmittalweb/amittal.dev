@@ -164,6 +164,10 @@ html[data-vt='glitch']::view-transition-new(root) { animation: 160ms cubic-bezie
 @keyframes rise { from { opacity: 0; transform: translateY(14px) } }
 .reveal-in { animation: reveal-in .24s ease-out backwards }
 @keyframes reveal-in { from { opacity: 0; transform: translateY(-4px) } }
+/* The Core's title row. When the search sits beside the title, a long answer scrolls inside
+   the box instead of stretching the row and leaving a gap under the title. */
+.core-top { container-type: inline-size }
+@container (min-width: 840px) { .core-top .answer { max-height: min(62vh, 560px); overflow-y: auto; overscroll-behavior: contain } }
 .bar-grow { transform-origin: left; animation: bar-grow .9s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: calc(.3s + var(--i, 0) * 90ms) }
 @keyframes bar-grow { from { transform: scaleX(0) } }
 /* The toast is pinned at a slight angle, so its keyframes keep the angle. */

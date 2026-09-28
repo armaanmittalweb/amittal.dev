@@ -67,6 +67,12 @@ function PathList({ big }: { big?: boolean }) {
   )
 }
 
+/** Back to the objective screen, to choose what this visit is for again. */
+function ChangeObjective() {
+  const changeObjective = useArchive(s => s.changeObjective)
+  return <button type="button" onClick={changeObjective} style={{ font: 'inherit', letterSpacing: 'inherit', background: 'transparent', border: 0, padding: 0, color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>CHANGE</button>
+}
+
 function DeskHeader() {
   const { visited, done, doneText, mat } = useCoreState()
   const seed = useArchive(s => s.seed)
@@ -149,7 +155,7 @@ function MobileHeader() {
           </div>
           <div className="mono" style={{ display: 'flex', fontSize: 10, letterSpacing: '.12em' }}><Materials current={mat} pad="5px 9px" /></div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div className="label" style={{ paddingBottom: 6 }}>YOUR PATH · {obj.short}</div>
+            <div className="label" style={{ paddingBottom: 6, display: 'flex', justifyContent: 'space-between', gap: 12 }}>YOUR PATH · {obj.short}<ChangeObjective /></div>
             <PathList big />
           </div>
           <div className="mono" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -184,7 +190,7 @@ function Sidebar() {
         })}
       </nav>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div className="mono" style={{ fontSize: 9, letterSpacing: '.14em', color: 'var(--muted)' }}>YOUR PATH · {obj.short}</div>
+        <div className="mono" style={{ fontSize: 9, letterSpacing: '.14em', color: 'var(--muted)', display: 'flex', justifyContent: 'space-between', gap: 8 }}>YOUR PATH · {obj.short}<ChangeObjective /></div>
         <PathList />
       </div>
       <MotionToggle className="hbtn" style={{ alignSelf: 'flex-start' }} />

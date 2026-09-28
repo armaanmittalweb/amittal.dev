@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { CAT_LABEL, LINKS, MATERIAL, PROJECTS, TARGETS, type Category } from '../../data/content'
+import { CAT_LABEL, LINKS, MATERIAL, OBJECTIVES, PROJECTS, TARGETS, type Category } from '../../data/content'
 import { derive } from '../../lib/seed'
 import { useArchive } from '../../store'
 import { useSceneAvailable } from '../../lib/scene'
@@ -24,6 +24,8 @@ export function Report() {
   const visited = useArchive(s => s.visited)
   const interest = useArchive(s => s.interest)
   const found = useArchive(s => s.found)
+  const objective = useArchive(s => s.objective)
+  const close = (OBJECTIVES.find(o => o.id === objective) || OBJECTIVES[0]).close
   const { go, inspect } = useArchive.getState()
   const sceneOk = useSceneAvailable()
 
@@ -52,6 +54,7 @@ export function Report() {
         <h1 className="stencil" style={{ fontWeight: 800, fontSize: 'clamp(40px,11vw,80px)', lineHeight: .88 }}>
           {pct >= 90 ? 'ARCHIVE RECONSTRUCTED.' : pct >= 50 ? 'YOU SAW MOST OF THE SYSTEM.' : 'YOU SAW PART OF THE SYSTEM.'}
         </h1>
+        <p style={{ fontSize: 21, fontStyle: 'italic', color: 'var(--muted)', maxWidth: 620, textWrap: 'pretty' }}>{close}</p>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,280px),1fr))', gap: 40 }}>
         <dl className="mono" style={{ margin: 0, display: 'flex', flexDirection: 'column', fontSize: 11, letterSpacing: '.08em' }}>

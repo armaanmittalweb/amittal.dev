@@ -270,18 +270,31 @@ export const TARGETS = [
   'break', 'why', 'fail', 'depth3', 'query', 'inspect',
 ]
 
-export const OBJECTIVES = [
-  { id: 'hiring', label: 'UNDERSTAND THE ENGINEER', short: 'THE ENGINEER',
-    desc: 'Who I am, what I have done and how to reach me. The shortest path.',
+// What the visitor came for. It shapes the visit: what the Core leads with, how deep a
+// project opens, the search's tone, the path in the sidebar and the closing report.
+export const OBJECTIVES: {
+  id: 'hiring' | 'engineering' | 'research' | 'curiosity'; label: string; short: string; desc: string
+  /** The depth a project page opens at. */
+  depth: 1 | 2 | 3
+  /** Said by the closing report. */
+  close: string
+  path: [label: string, key: string][]
+}[] = [
+  { id: 'hiring', label: 'UNDERSTAND THE ENGINEER', short: 'THE ENGINEER', depth: 1,
+    desc: 'A one-screen briefing first: role, background, resume and contact. Projects open at the short version.',
+    close: 'The short version is on the resume. The long one is an email away.',
     path: [['Identity', 'identity'], ['Resume', 'resume'], ['The Lab', 'lab'], ['Transmission', 'report']] },
-  { id: 'engineering', label: 'SEE THE WORK', short: 'THE WORK',
-    desc: 'Systems, architecture and the decisions behind them.',
+  { id: 'engineering', label: 'SEE THE WORK', short: 'THE WORK', depth: 3,
+    desc: 'Projects open at the decisions and incident logs. The search answers in stacks and trade-offs.',
+    close: 'You read the decisions, which is where the engineering actually is.',
     path: [['Capabilities', 'capabilities'], ['LatentBook', 'p:latentbook'], ['Inspect system', 'inspect'], ['Transmission', 'report']] },
-  { id: 'research', label: 'READ THE RESEARCH', short: 'THE RESEARCH',
-    desc: 'Multilingual NLP, speech from EEG, and the papers behind them.',
+  { id: 'research', label: 'READ THE RESEARCH', short: 'THE RESEARCH', depth: 2,
+    desc: 'Papers and methods first: multilingual NLP, speech from EEG. Projects open at how they work.',
+    close: 'The papers asked the questions. The Lab is where the answers got built.',
     path: [['Research', 'research'], ['FarmSaathi', 'p:farmsaathi'], ['Trace', 'trace'], ['Transmission', 'report']] },
-  { id: 'curiosity', label: 'BREAK THE SYSTEM', short: 'THE SYSTEM',
-    desc: 'Take projects apart, wander, and find out how this site works.',
+  { id: 'curiosity', label: 'BREAK THE SYSTEM', short: 'THE SYSTEM', depth: 2,
+    desc: 'Easter-egg hints switch on, the search gets cheeky, and everything is there to take apart.',
+    close: 'You came to break things. The pipelines will recover.',
     path: [['The Lab', 'lab'], ['Trace', 'trace'], ['Inspect system', 'inspect'], ['Transmission', 'report']] },
 ]
 
@@ -310,13 +323,4 @@ export const EGGS: Egg[] = [
   { id: 'tab', code: 'EGG-10', title: 'YOU CAME BACK', body: 'The tab title noticed you left.', hint: 'Leave, then return.' },
   { id: 'console', code: 'EGG-11', title: 'SOURCE DRAWER', body: 'You knocked from the developer console.', hint: 'Engineers check the console.' },
   { id: 'lockdown', code: 'EGG-12', title: 'LOCKDOWN', body: 'Ten pulls on the handle. Your key was revoked and the vault resealed.', hint: 'Drawer 99 is not the last thing the handle does.' },
-]
-
-export interface Secret { re: RegExp; title: string; body: string; egg?: string; to?: View }
-export const SECRETS: Secret[] = [
-  { re: /^sudo/, title: 'PERMISSION DENIED', body: 'Nice try. This archive has no root user.', egg: 'sudo' },
-  { re: /who are you|who is armaan|^about/, title: 'REQUEST ROUTED', body: 'This archive is maintained by one person. Their file is in Drawer 01.', to: 'identity' },
-  { re: /coffee|\btea\b/, title: '418 · I AM A TEAPOT', body: 'The archive refuses to brew coffee. Tea is available on request.' },
-  { re: /^42$|meaning of life/, title: 'ANSWER FOUND', body: '42. The question is still missing from the index.' },
-  { re: /hire|job|recruit/, title: 'PRIORITY REQUEST', body: 'Fast track approved. The record is in Drawer 03.', to: 'resume' },
 ]
