@@ -47,7 +47,7 @@ function TraceList() {
 /** What the selected node is, docked against the graph so reading it needs no scrolling. */
 function NodePanel({ node, lit, onOpen, goLabel }: { node?: TraceNode; lit: boolean; onOpen: (n: TraceNode) => void; goLabel: (n: TraceNode) => string }) {
   return (
-    <div aria-live="polite" style={{ padding: 'clamp(14px,3vw,22px)', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 120, justifyContent: node ? 'flex-start' : 'center' }}>
+    <div aria-live="polite" className="reveal-in" style={{ padding: 'clamp(14px,3vw,22px)', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 120, justifyContent: node ? 'flex-start' : 'center' }}>
       {node ? (
         <>
           <span className="mono" style={{ fontSize: 10, letterSpacing: '.14em', color: 'var(--muted)' }}>
@@ -90,7 +90,7 @@ export function Trace() {
         </div>
       )}
       {listView ? <TraceList /> : (
-        <Stage label="Trace graph" panel={<NodePanel node={node} lit={node ? lit(node) : false} onOpen={open} goLabel={goLabel} />}
+        <Stage label="Trace graph" panel={<NodePanel key={node?.id ?? 'none'} node={node} lit={node ? lit(node) : false} onOpen={open} goLabel={goLabel} />}
           hStack="clamp(280px, calc(var(--avail) - 190px), 520px)" hSide="clamp(320px, calc(var(--avail) - 40px), 560px)"
           view={<Archive3D mode="graph" mat={MATERIAL.trace} hue={derive(seed).hue}
             data={{ nodes: NODES.map(n => ({ id: n.id, label: n.label, year: n.year, x: n.x, y: n.y, lit: lit(n) })), edges: EDGES, sel: nodeId }} />}

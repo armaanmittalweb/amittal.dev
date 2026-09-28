@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ComponentType } from 'react'
 import { MATERIAL, NAV, OBJECTIVES, TARGETS, type View } from '../data/content'
-import { useHeaderHeight, useSidebarLayout } from '../hooks'
+import { useHeaderHeight, usePresence, useSidebarLayout } from '../hooks'
+import { isReducedMotion } from '../lib/motion'
 import { usePrimeAudioOnPress } from '../lib/sfx'
 import { useArchive } from '../store'
 import { MisfiledNote } from './ui'
@@ -73,7 +74,7 @@ function DeskHeader() {
   const ref = useRef<HTMLElement>(null)
   useHeaderHeight(ref)
   return (
-    <header ref={ref} className="mono" style={{ position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--bg)', backgroundImage: 'var(--tex)', backgroundSize: 'var(--tex-size)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px 18px', padding: '12px 28px', borderBottom: '1px solid var(--line)', fontSize: 10, letterSpacing: '.12em' }}>
+    <header ref={ref} className="mono vt-header" style={{ position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--bg)', backgroundImage: 'var(--tex)', backgroundSize: 'var(--tex-size)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px 18px', padding: '12px 28px', borderBottom: '1px solid var(--line)', fontSize: 10, letterSpacing: '.12em' }}>
       <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
         <button type="button" onClick={logoClick} className="stencil" title="Back to the Core" style={{ background: 'transparent', border: 0, padding: 0, color: 'inherit', cursor: 'pointer', fontWeight: 800, fontSize: 20, letterSpacing: '.08em' }}>AMITTAL.DEV</button>
         <span className="hdr-seed" style={{ color: 'var(--muted)' }}>SEED <span style={{ color: 'var(--accent)' }}>{seed}</span></span>
@@ -106,16 +107,20 @@ function MobileHeader() {
   const ref = useRef<HTMLElement>(null)
   const strip = useRef<HTMLElement>(null)
   useHeaderHeight(ref)
-  // Keep the current drawer's tab in view inside the strip.
+  // Keep the current drawer's tab in view inside the strip: in place on arrival, gliding after a tap.
+  const placed = useRef(false)
   useEffect(() => {
     const nav = strip.current, on = nav?.querySelector<HTMLElement>('[aria-current="page"]')
-    if (nav && on) nav.scrollLeft = on.offsetLeft - nav.clientWidth / 2 + on.offsetWidth / 2
+    if (!nav || !on) return
+    nav.scrollTo({ left: on.offsetLeft - nav.clientWidth / 2 + on.offsetWidth / 2, behavior: placed.current && !isReducedMotion() ? 'smooth' : 'auto' })
+    placed.current = true
   }, [view])
+  const menu = usePresence(menuOpen || null, 160)
   const menuBtn = { minHeight: 48, padding: '0 16px', textAlign: 'left', border: '1px solid var(--line)', background: 'transparent', color: 'var(--ink)', cursor: 'pointer', fontSize: 11, letterSpacing: '.12em' } as const
   const surface = { backgroundColor: 'var(--bg)', backgroundImage: 'var(--tex)', backgroundSize: 'var(--tex-size)', borderBottom: '1px solid var(--line)' } as const
   return (
     <>
-    <header ref={ref} style={{ position: 'sticky', top: 0, zIndex: 20, ...surface }}>
+    <header ref={ref} className="vt-header" style={{ position: 'sticky', top: 0, zIndex: 20, ...surface }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 16px' }}>
         <button type="button" onClick={logoClick} className="stencil" title="Back to the Core" style={{ background: 'transparent', border: 0, padding: 0, color: 'inherit', cursor: 'pointer', fontWeight: 800, fontSize: 20, letterSpacing: '.08em' }}>AMITTAL.DEV</button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, maxWidth: 150 }}>
@@ -136,8 +141,8 @@ function MobileHeader() {
           )
         })}
       </nav>
-      {menuOpen && (
-        <div role="dialog" aria-modal="true" aria-label="Menu" style={{ position: 'fixed', inset: 0, zIndex: 60, backgroundColor: 'var(--bg)', color: 'var(--ink)', overflowY: 'auto', padding: '14px 18px 32px', display: 'flex', flexDirection: 'column', gap: 26 }}>
+      {menu.item && (
+        <div role="dialog" aria-modal="true" aria-label="Menu" className={menu.leaving ? 'menu-out' : 'menu-in'} inert={menu.leaving} style={{ position: 'fixed', inset: 0, zIndex: 60, backgroundColor: 'var(--bg)', color: 'var(--ink)', overflowY: 'auto', padding: '14px 18px 32px', display: 'flex', flexDirection: 'column', gap: 26 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
             <span className="mono" style={{ fontSize: 10, letterSpacing: '.12em', color: 'var(--muted)' }}>SEED <span style={{ color: 'var(--accent)' }}>{seed}</span></span>
             <button type="button" onClick={toggleMenu} autoFocus className="mono" style={{ minHeight: 44, padding: '0 16px', border: '1px solid var(--ink)', background: 'transparent', color: 'var(--ink)', cursor: 'pointer', fontSize: 10, letterSpacing: '.12em' }}>CLOSE ✕</button>
@@ -164,7 +169,7 @@ function Sidebar() {
   const { view, visited, obj } = useCoreState()
   const go = useArchive(s => s.go)
   return (
-    <div style={{ flex: '0 0 232px', borderRight: '1px solid var(--line)', padding: '26px 20px', display: 'flex', flexDirection: 'column', gap: 34, position: 'sticky', top: 'var(--hdr-h, 57px)', alignSelf: 'flex-start', maxHeight: 'calc(100vh - var(--hdr-h, 57px))', overflowY: 'auto', scrollbarWidth: 'none' }}>
+    <div className="vt-side" style={{ flex: '0 0 232px', borderRight: '1px solid var(--line)', padding: '26px 20px', display: 'flex', flexDirection: 'column', gap: 34, position: 'sticky', top: 'var(--hdr-h, 57px)', alignSelf: 'flex-start', maxHeight: 'calc(100vh - var(--hdr-h, 57px))', overflowY: 'auto', scrollbarWidth: 'none' }}>
       <nav aria-label="Drawers" style={{ display: 'flex', flexDirection: 'column' }}>
         {NAV.map(([num, label, v]) => {
           const active = view === v || (v === 'lab' && view === 'project')

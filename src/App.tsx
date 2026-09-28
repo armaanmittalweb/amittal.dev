@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
 import { Core } from './components/Core'
 import { Entrance } from './components/Entrance'
 import { FastAccess } from './components/FastAccess'
@@ -14,7 +14,6 @@ export default function App() {
   const screen = useArchive(s => s.screen)
   const view = useArchive(s => s.view)
   const seed = useArchive(s => s.seed)
-  const glitch = useArchive(s => s.glitch)
   const negative = useArchive(s => s.negative)
   const reduced = useReducedMotion()
 
@@ -23,9 +22,15 @@ export default function App() {
   useTilt(!reduced)
 
   const hue = derive(seed || '0000000000000000').hue
-  const T = theme(screen === 'core' ? MATERIAL[view] : screen === 'entrance' ? 'vault' : 'paper', hue)
-  const filter = glitch === 1 ? 'invert(1) sepia(.4)' : glitch === 2 ? 'contrast(4) grayscale(1)' : negative ? 'invert(1) hue-rotate(180deg)' : ''
+  const material = screen === 'core' ? MATERIAL[view] : screen === 'entrance' ? 'vault' : 'paper'
+  const filter = negative ? 'invert(1) hue-rotate(180deg)' : ''
 
+  // The theme lives on <html>, whose background is --bg: during a page transition the old
+  // page fades out onto the new drawer's colour, never through a mix of the two.
+  useLayoutEffect(() => {
+    const s = document.documentElement.style
+    for (const [k, v] of Object.entries(themeVars(theme(material, hue)))) s.setProperty(k, String(v))
+  }, [material, hue])
   // On <html>, a filter doesn't become the containing block for position:fixed
   // children, so the mobile menu and toast stay pinned to the viewport.
   useEffect(() => { document.documentElement.style.filter = filter }, [filter])
@@ -33,8 +38,8 @@ export default function App() {
   return (
     <>
       <div style={{
-        ...themeVars(T), minHeight: '100vh', backgroundColor: 'var(--bg)', backgroundImage: 'var(--tex)', backgroundSize: 'var(--tex-size)',
-        color: 'var(--ink)', fontFamily: "'Newsreader',serif", transition: 'background-color .9s,color .9s',
+        minHeight: '100vh', backgroundColor: 'var(--bg)', backgroundImage: 'var(--tex)', backgroundSize: 'var(--tex-size)',
+        color: 'var(--ink)', fontFamily: "'Newsreader',serif",
       }}>
         {screen === 'entrance' && <Entrance />}
         {screen === 'objective' && <Objective />}

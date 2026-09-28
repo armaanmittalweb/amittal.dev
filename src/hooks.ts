@@ -70,6 +70,23 @@ export function useReducedMotion() {
   return pref === 'reduced' || (pref === 'system' && system)
 }
 
+/**
+ * Keeps the last non-null `value` on screen for `ms` after it goes, so it can animate out.
+ * `leaving` is true for that time. Under reduced motion it goes at once.
+ */
+export function usePresence<T>(value: T | null, ms: number) {
+  const reduced = useReducedMotion()
+  const [last, setLast] = useState(value)
+  if (value !== null ? value !== last : reduced && last !== null) setLast(value)
+  const leaving = value === null && last !== null && !reduced
+  useEffect(() => {
+    if (!leaving) return
+    const t = setTimeout(() => setLast(null), ms)
+    return () => clearTimeout(t)
+  }, [leaving, ms])
+  return { item: value ?? (reduced ? null : last), leaving }
+}
+
 /** Publishes the motion setting on <html data-motion> for CSS, the store and the 3D elements. */
 export function useMotionAttribute(reduced: boolean) {
   useEffect(() => { document.documentElement.dataset.motion = reduced ? 'reduced' : 'full' }, [reduced])

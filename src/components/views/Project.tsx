@@ -1,5 +1,5 @@
 import { CAT_LABEL, MATERIAL, PROJECTS, type Project as P } from '../../data/content'
-import { useEffect, useRef, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { reveal, useIsDesk } from '../../hooks'
 import { derive } from '../../lib/seed'
 import { useArchive } from '../../store'
@@ -56,6 +56,8 @@ export function Project() {
   // Going deeper adds a section below everything already open. Bring it into view,
   // or the tab looks like it did nothing.
   const l2 = useRef<HTMLElement>(null), l3 = useRef<HTMLDivElement>(null), shown = useRef(depth)
+  // Sections already open when the page arrived come with it; ones the visitor opens rise into place.
+  const [arrived] = useState(depth)
   useEffect(() => {
     if (depth > shown.current) reveal(depth === 3 ? l3.current : l2.current)
     shown.current = depth
@@ -95,7 +97,7 @@ export function Project() {
         <p style={{ fontSize: 26, lineHeight: 1.35, maxWidth: 700, textWrap: 'pretty' }}>{proj.l1}</p>
       </section>
       {depth >= 2 && (
-        <section ref={l2} data-reveal style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <section ref={l2} data-reveal className={arrived > 1 ? undefined : 'rise'} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div style={{ display: 'grid', gridTemplateColumns: col, gap }}>
             <h2 style={{ ...levelLabel, paddingTop: 6 }}>L2 · HOW DOES IT WORK?</h2>
             <p style={{ fontSize: 19, lineHeight: 1.55, maxWidth: 700, textWrap: 'pretty', opacity: .9 }}>{proj.l2}</p>
@@ -119,7 +121,7 @@ export function Project() {
         </section>
       )}
       {depth >= 3 && (
-        <div ref={l3} data-reveal style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,300px),1fr))', gap: 28 }}>
+        <div ref={l3} data-reveal className={arrived > 2 ? undefined : 'rise'} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,300px),1fr))', gap: 28 }}>
           <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <h2 style={{ ...levelLabel, paddingBottom: 4 }}>L3 · WHY? ENGINEERING DECISIONS</h2>
             {proj.why.map((w, i) => {
@@ -130,7 +132,7 @@ export function Project() {
                     <span>{w.q}</span><span className="mono" aria-hidden="true">{open ? '−' : '+'}</span>
                   </button>
                   {open && (
-                    <div className="mono" style={{ padding: '0 16px 18px', display: 'flex', flexDirection: 'column', gap: 9, fontSize: 11, lineHeight: 1.7 }}>
+                    <div className="mono reveal-in" style={{ padding: '0 16px 18px', display: 'flex', flexDirection: 'column', gap: 9, fontSize: 11, lineHeight: 1.7 }}>
                       <div><span style={{ color: 'var(--muted)' }}>ALTERNATIVE · </span>{w.alt}</div>
                       <div style={{ color: 'var(--muted)' }}>WHY NOT?</div>
                       {w.whyNot.map(x => <div key={x} style={{ paddingLeft: 12, borderLeft: '1.5px solid var(--ink)' }}>{x}</div>)}
@@ -153,7 +155,7 @@ export function Project() {
                     <span>{f.problem}</span><span className="mono" aria-hidden="true">{open ? '−' : '+'}</span>
                   </button>
                   {open && (
-                    <dl style={{ margin: 0, padding: '0 16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <dl className="reveal-in" style={{ margin: 0, padding: '0 16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {rows.map(([k, v]) => (
                         <div key={k} style={{ display: 'grid', gridTemplateColumns: desk ? '120px 1fr' : '1fr', gap: desk ? 12 : 2 }}>
                           <dt className="mono" style={{ fontSize: 9, letterSpacing: '.12em', color: 'var(--muted)', paddingTop: 4 }}>{k}</dt>

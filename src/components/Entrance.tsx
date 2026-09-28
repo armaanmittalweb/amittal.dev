@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import { LINKS } from '../data/content'
-import { useReducedMotion, useViewport } from '../hooks'
+import { usePresence, useReducedMotion, useViewport } from '../hooks'
 import type { Handle } from '../lib/audio'
 import { derive } from '../lib/seed'
 import { sfx, usePrimeAudioOnPress } from '../lib/sfx'
-import { KEY_TURN, UNLOCK_END, ZOOM } from '../lib/unlock'
+import { FLOOD, KEY_TURN, OPENING, UNLOCK_END, ZOOM } from '../lib/unlock'
 import { useArchive } from '../store'
 import { MotionToggle } from './MotionToggle'
 import { useSceneAvailable } from '../lib/scene'
@@ -17,6 +17,12 @@ const KEY_EASE = `cubic-bezier(${KEY_TURN.curve.join(',')})`
 const TURN_DELAY = KEY_TURN.dur * 1000
 /** With reduced motion the door opens at once and the next screen follows shortly. */
 const REDUCED_END = 800
+/** The Objective screen's paper, which the light from the door turns into. */
+const PAPER = '#ebe4d1'
+/** The light's edge: solid to 70% of its radius, then feathered. */
+const SOFT_EDGE = 'radial-gradient(circle closest-side, #000 70%, transparent 100%)'
+/** The key turns on its own shaft, seen in perspective, so its tip stays in the lock. */
+const keyPose = (p: { dx: number; dy: number }, deg: number) => `translate(${p.dx}px,${p.dy}px) perspective(420px) rotateY(${deg}deg)`
 
 export function Entrance() {
   const seed = useArchive(s => s.seed)
@@ -40,6 +46,7 @@ export function Entrance() {
   const tipRef = useRef<HTMLDivElement>(null)
   const keyRef = useRef<HTMLDivElement>(null)
   const vaultRef = useRef<HTMLDivElement>(null)
+  const floodRef = useRef<HTMLDivElement>(null)
   const drag = useRef<{ sx: number; sy: number } | null>(null)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const sounds = useRef<Handle[]>([])
@@ -70,22 +77,31 @@ export function Entrance() {
    * scheduled against the same clock, so none of them waits on React or a timer.
    */
   const insertKey = () => {
-    const keyEl = keyRef.current, vault = vaultRef.current
-    if (!seed || inserted || !tipRef.current || !holeRef.current || !keyEl || !vault) return
+    const keyEl = keyRef.current, vault = vaultRef.current, flood = floodRef.current
+    if (!seed || inserted || !tipRef.current || !holeRef.current || !keyEl || !vault || !flood) return
     const k = tipRef.current.getBoundingClientRect(), h = holeRef.current.getBoundingClientRect()
     const from = key, to = { dx: from.dx + (h.left + h.width / 2) - (k.left + k.width / 2), dy: from.dy + (h.top + 14) - k.top }
     const t0 = performance.now(), opened = reduced ? t0 : t0 + TURN_DELAY
     setInserted(true); setDragging(false); setKey(to); setOpenedAt(opened)
     if (!reduced) {
-      const at = (p: { dx: number; dy: number }, deg: number) => `translate(${p.dx}px,${p.dy}px) rotate(${deg}deg)`
       keyEl.animate([
-        { offset: 0, transform: at(from, 0), easing: KEY_EASE },
-        { offset: .5, transform: at(to, 0), easing: KEY_EASE },
-        { offset: 1, transform: at(to, 90) },
+        { offset: 0, transform: keyPose(from, 0), easing: KEY_EASE },
+        { offset: .5, transform: keyPose(to, 0), easing: KEY_EASE },
+        { offset: 1, transform: keyPose(to, 90) },
       ], { duration: TURN_DELAY * 2, fill: 'both' }).startTime = t0
       const zoom = { duration: ZOOM.dur * 1000, delay: ZOOM.at * 1000, fill: 'both' } as const
       vault.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.8)' }], { ...zoom, easing: `cubic-bezier(${ZOOM.curve.join(',')})` }).startTime = opened
-      vault.animate([{ opacity: 1 }, { opacity: 0 }], { ...zoom, easing: 'ease' }).startTime = opened
+      // The light starts as the door's opening, in the tint of the light inside, and grows ever
+      // faster until its solid middle covers the farthest corner, turning to the next screen's paper.
+      const v = vault.getBoundingClientRect(), cx = v.left + v.width / 2, cy = v.top + v.height / 2, r0 = v.width * OPENING
+      const cover = Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)) + 24
+      Object.assign(flood.style, { left: cx - r0 + 'px', top: cy - r0 + 'px', width: 2 * r0 + 'px', height: 2 * r0 + 'px' })
+      const pour = { delay: FLOOD.at * 1000, fill: 'both' } as const
+      flood.animate([{ opacity: 0 }, { opacity: 1 }], { ...pour, duration: 180 }).startTime = opened
+      flood.animate([
+        { transform: 'scale(1.04)', backgroundColor: `hsl(${d.hue} 35% 90%)` },
+        { transform: `scale(${cover / (.7 * r0)})`, backgroundColor: PAPER },
+      ], { ...pour, duration: FLOOD.dur * 1000, easing: `cubic-bezier(${FLOOD.curve.join(',')})` }).startTime = opened
       sounds.current.push(sfx.keyInsert(t0, Math.hypot(to.dx - from.dx, to.dy - from.dy)))
     }
     sounds.current.push(sfx.unlock(opened, d.ring, reduced))
@@ -124,6 +140,8 @@ export function Entrance() {
   // With reduced motion the door doesn't zoom away; it stays on screen, open, until the next screen.
   // The zoom itself is a Web Animation started in insertKey.
   const doorGone = unlocking && !reduced
+  // The flat drawing fades into the 3D door once that has drawn, instead of switching in one frame.
+  const drawing = usePresence(!sceneOk || !sceneReady ? true : null, 350)
   const lampColor = unlocking ? '#9fe08a' : seed ? '#e8b85a' : '#c2584a'
   const mono = { fontFamily: "'Martian Mono',monospace" }
 
@@ -138,7 +156,11 @@ export function Entrance() {
         <h1 className="sr-only">Armaan Mittal · personal archive</h1>
         <div ref={vaultRef} data-part="vault" style={{ position: 'relative', flex: 'none', width: vaultPx, height: vaultPx }}>
           {sceneOk && <Vault3D seed={seed || '0000000000000000'} ring={d.ring} hue={d.hue} state={openedAt != null ? 'open' : seed ? 'keyed' : 'locked'} openedAt={openedAt} />}
-          {(!sceneOk || !sceneReady) && <VaultDrawing seed={seed || '0000000000000000'} ring={d.ring} hue={d.hue} size={vaultPx} openedAt={openedAt} reduced={reduced} />}
+          {drawing.item && (
+            <div style={{ position: 'absolute', inset: 0, opacity: drawing.leaving ? 0 : 1, transition: 'opacity .35s ease-out' }}>
+              <VaultDrawing seed={seed || '0000000000000000'} ring={d.ring} hue={d.hue} size={vaultPx} openedAt={openedAt} reduced={reduced} />
+            </div>
+          )}
           <div ref={holeRef} style={{ position: 'absolute', left: '50%', top: '50%', width: 28, height: 52, margin: '-26px 0 0 -14px', pointerEvents: 'none' }} />
           <button type="button" aria-label="Vault lamp" onClick={() => { sfx.lamp(); const n = lamp + 1; setLamp(n); if (n >= 5) egg('lamp') }} style={{ position: 'absolute', top: 0, left: '50%', width: 32, height: 32, marginLeft: -16, background: 'transparent', border: 0, cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 0 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: lampColor, boxShadow: `0 0 16px ${lampColor}` }} />
@@ -146,7 +168,7 @@ export function Entrance() {
         </div>
         <div style={{ position: 'relative', flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: 'min(300px,100%)' }}>
           <div ref={keyRef} data-part="key" onPointerDown={keyDown} onPointerMove={keyMove} onPointerUp={keyUp} onPointerCancel={keyCancel} onLostPointerCapture={keyCancel}
-            style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: !seed ? 'default' : dragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', opacity: !seed ? .35 : doorGone ? 0 : 1, transform: `translate(${key.dx}px,${key.dy}px) rotate(${unlocking ? 90 : 0}deg)`, transition: dragging ? 'none' : inserted ? 'opacity .6s .5s' : 'transform .55s cubic-bezier(.3,.7,.2,1), opacity .6s .5s', zIndex: 5 }}>
+            style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: !seed ? 'default' : dragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', opacity: !seed ? .35 : doorGone ? 0 : 1, transform: keyPose(key, unlocking ? 90 : 0), transition: dragging ? 'none' : inserted ? 'opacity .6s .5s' : 'transform .55s cubic-bezier(.3,.7,.2,1), opacity .6s .5s', zIndex: 5 }}>
             <div ref={tipRef} style={{ width: 8, height: 5, background: '#caa55e', borderRadius: '2px 2px 0 0' }} />
             <div style={{ position: 'relative', width: 8, height: 50, background: 'linear-gradient(90deg,#8d6c30,#d9b76e 45%,#9a7736)' }}>
               <div style={{ position: 'absolute', left: 8, top: 7, width: 10, height: 7, background: '#b8934d' }} />
@@ -177,8 +199,9 @@ export function Entrance() {
               <button type="button" onClick={issueKey} className="stencil hover-white" style={{ fontWeight: 700, fontSize: 21, letterSpacing: '.14em', minHeight: 46, padding: '0 30px', background: '#e9e1cf', border: 0, color: '#15120e', cursor: 'pointer', whiteSpace: 'nowrap' }}>ISSUE KEY</button>
             </div>
           )}
-          {seed && !inserted && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' }}>
+          {/* Once the key is in, the hint fades but keeps its space, so nothing on the screen shifts under the key. */}
+          {seed && (
+            <div aria-hidden={inserted} inert={inserted} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center', opacity: inserted ? 0 : 1, visibility: inserted ? 'hidden' : 'visible', transition: 'opacity .25s, visibility 0s .25s' }}>
               <p style={{ fontFamily: "'Newsreader',serif", fontStyle: 'italic', fontSize: 17, color: '#cfc4ad' }}>This instance of the archive is unique to you.</p>
               <div style={{ ...mono, fontSize: 10, letterSpacing: '.14em', lineHeight: 1.8, color: '#a89c84' }}>
                 {vw < 820 ? 'DRAG THE KEY UP INTO THE LOCK' : 'DRAG THE KEY INTO THE LOCK'} · <button type="button" onClick={insertKey} style={{ background: 'transparent', border: 0, padding: '6px 0', color: '#e9e1cf', cursor: 'pointer', font: 'inherit', letterSpacing: 'inherit', textDecoration: 'underline' }}>INSERT FOR ME</button>
@@ -194,6 +217,8 @@ export function Entrance() {
           <button type="button" onClick={goFast} className="hover-light-border" style={{ ...mono, fontSize: 11, letterSpacing: '.14em', minHeight: 44, padding: '0 16px', background: 'transparent', border: '1px solid #6b6252', color: '#e9e1cf', cursor: 'pointer', whiteSpace: 'nowrap' }}>FAST ACCESS →</button>
         </div>
       </div>
+      {/* The light from the open door: placed over the vault and animated in insertKey. */}
+      <div ref={floodRef} aria-hidden="true" style={{ position: 'fixed', left: 0, top: 0, width: 0, height: 0, opacity: 0, zIndex: 40, pointerEvents: 'none', backgroundColor: PAPER, maskImage: SOFT_EDGE, WebkitMaskImage: SOFT_EDGE }} />
     </div>
   )
 }

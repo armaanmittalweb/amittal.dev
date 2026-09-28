@@ -5,9 +5,10 @@ import {
   type Category, type Secret, type View,
 } from './data/content'
 import { cancelAll, primeAudio, setDroneMaterial, setSoundEnabled, startDrone, stopDrone, type Handle } from './lib/audio'
-import { isReducedMotion, type MotionPref } from './lib/motion'
+import type { MotionPref } from './lib/motion'
 import { newSeed } from './lib/seed'
 import { sfx } from './lib/sfx'
+import { transition } from './lib/transition'
 
 export type Screen = 'entrance' | 'objective' | 'core' | 'fast'
 export interface Toast { kicker?: string; code: string; title: string; body: string }
@@ -45,7 +46,6 @@ interface Transient {
   cabHover: number | null
   menuOpen: boolean
   toast: Toast | null
-  glitch: 0 | 1 | 2
   /** The seed-tuned drone, off until asked for. Needs sound on. */
   drone: boolean
   query: string
@@ -100,8 +100,7 @@ let logoAt = 0
 const PULL_GAP = 800
 /** Which stages of each pipeline this visitor has pulled at least once, for the demolition egg. */
 const demolished: Record<string, Record<number, true>> = {}
-/** The inspect glitch sequence, cancelled by any other navigation. */
-let glitchTimers: ReturnType<typeof setTimeout>[] = []
+/** The static under the Inspect glitch, cut short by any other navigation. */
 let glitchSound: Handle | null = null
 
 const top = () => window.scrollTo(0, 0)
@@ -133,12 +132,10 @@ function changedOnlyStorage<S extends object>(): PersistStorage<S> {
 }
 
 export const useArchive = create<ArchiveState>()(persist((set, get) => {
-  /** Any navigation cancels a glitch that is still on its way to the Inspect page. */
+  /** Any navigation silences a glitch that is still playing (its transition is skipped by the new one). */
   const cancelGlitch = () => {
-    if (glitchTimers.length) glitchSound?.cancel()
-    glitchTimers.forEach(clearTimeout)
-    glitchTimers = []
-    if (get().glitch) set({ glitch: 0 })
+    glitchSound?.cancel()
+    glitchSound = null
   }
 
   return {
@@ -147,7 +144,7 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
   found: false, eggs: {}, negative: false, motion: 'system', fastFrom: null, sound: true,
 
   removed: null, nodeId: null, openWhy: null, openFail: null, openRes: null, layer: 0,
-  cabHover: null, menuOpen: false, toast: null, glitch: 0, drone: false,
+  cabHover: null, menuOpen: false, toast: null, drone: false,
   query: '', results: null, secret: null, logo: 0, traceList: false,
 
   visit(key, cat, weight = 1) {
@@ -160,21 +157,25 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
 
   go(view) {
     cancelGlitch()
-    set({ screen: 'core', view, removed: null, openWhy: null, openFail: null, menuOpen: false })
-    top()
     setDroneMaterial(MATERIAL[view])
-    if (['identity', 'capabilities', 'trace', 'lab', 'report', 'resume', 'research'].includes(view))
-      get().visit(view, view === 'research' ? 'research' : null)
+    transition(() => {
+      set({ screen: 'core', view, removed: null, openWhy: null, openFail: null, menuOpen: false })
+      top()
+      if (['identity', 'capabilities', 'trace', 'lab', 'report', 'resume', 'research'].includes(view))
+        get().visit(view, view === 'research' ? 'research' : null)
+    })
   },
 
   openProject(id) {
     const p = PROJECTS.find(x => x.id === id)
     if (!p) return
     cancelGlitch()
-    set({ screen: 'core', view: 'project', projectId: id, depth: 1, removed: null, openWhy: null, openFail: null, menuOpen: false })
-    top()
     setDroneMaterial(MATERIAL.project)
-    get().visit('p:' + id, p.cat, 2)
+    transition(() => {
+      set({ screen: 'core', view: 'project', projectId: id, depth: 1, removed: null, openWhy: null, openFail: null, menuOpen: false })
+      top()
+      get().visit('p:' + id, p.cat, 2)
+    })
   },
 
   openKey(key) {
@@ -183,43 +184,41 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     get().go(key as View)
   },
 
+  // The way into the system: the page jitters, collapses to a line like an old monitor
+  // switching off, and Inspect opens out of it (see html[data-vt='glitch'] in app.css).
+  // The static's three phases (0, 140, 260 to 420 ms) start with the animation, not the click.
+  // Reduced motion, or a browser without View Transitions, just opens the page.
   inspect() {
-    if (glitchTimers.length) return // already on its way
-    const land = () => {
-      glitchTimers = []
-      set({ glitch: 0, screen: 'core', view: 'inspect', menuOpen: false })
+    cancelGlitch()
+    setDroneMaterial(MATERIAL.inspect)
+    const vt = transition(() => {
+      set({ screen: 'core', view: 'inspect', menuOpen: false })
       top()
-      setDroneMaterial(MATERIAL.inspect)
       get().visit('inspect', 'interface', 2)
-    }
-    // The inversion flash is exactly what reduced motion asks us not to do.
-    if (isReducedMotion()) return land()
-    set({ glitch: 1 })
-    glitchSound = sfx.glitch()
-    glitchTimers = [
-      setTimeout(() => set({ glitch: 2 }), 140),
-      setTimeout(() => set({ glitch: 1 }), 260),
-      setTimeout(land, 420),
-    ]
+    }, 'glitch')
+    vt?.ready.then(() => { glitchSound = sfx.glitch() }, () => {})
   },
 
   issueKey() { sfx.keyJingle(); set({ seed: newSeed(), revoked: null }) },
   unlocked() { set({ screen: 'objective' }) },
-  pickObjective(id) { cancelGlitch(); set({ objective: id, screen: 'core', view: 'hub' }); top() },
+  pickObjective(id) { transition(() => { set({ objective: id, screen: 'core', view: 'hub' }); top() }) },
   // Fast Access is the no-frills page: the drone stops there and nothing plays.
   goFast() {
     cancelGlitch()
     stopDrone()
     cancelAll()
     const from = get().screen
-    set({ screen: 'fast', fastFrom: from === 'fast' ? get().fastFrom : from, menuOpen: false, drone: false })
-    top()
+    transition(() => {
+      set({ screen: 'fast', fastFrom: from === 'fast' ? get().fastFrom : from, menuOpen: false, drone: false })
+      top()
+    })
   },
   leaveFast() {
-    cancelGlitch()
     const s = get()
-    set({ screen: s.seed ? (s.fastFrom && s.fastFrom !== 'fast' ? s.fastFrom : 'core') : 'entrance' })
-    top()
+    transition(() => {
+      set({ screen: s.seed ? (s.fastFrom && s.fastFrom !== 'fast' ? s.fastFrom : 'core') : 'entrance' })
+      top()
+    })
   },
 
   egg(id) {
@@ -250,12 +249,14 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     cancelGlitch()
     stopDrone()
     if (fromLogo) sfx.slam()
-    set({
-      seed: null, revoked: s.seed || s.revoked || null, logo: 0, visited: {}, interest: {}, log: 0,
-      screen: 'entrance', view: 'hub', results: null, query: '', secret: null, found: false, drone: false,
-      menuOpen: false, nodeId: null, capId: null, layer: 0, cabHover: null,
+    transition(() => {
+      set({
+        seed: null, revoked: s.seed || s.revoked || null, logo: 0, visited: {}, interest: {}, log: 0,
+        screen: 'entrance', view: 'hub', results: null, query: '', secret: null, found: false, drone: false,
+        menuOpen: false, nodeId: null, capId: null, layer: 0, cabHover: null,
+      })
+      top()
     })
-    top()
     if (!fromLogo) return
     if (s.eggs.lockdown) get().note({ kicker: 'VAULT RESEALED', code: 'LOCK', title: 'KEY REVOKED', body: 'Your old key no longer opens this archive. Issue a new one.' })
     else get().egg('lockdown')

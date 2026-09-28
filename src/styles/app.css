@@ -33,7 +33,9 @@
 }
 
 * { box-sizing: border-box }
-body { margin: 0; background: #15120e }
+/* The page colour sits on the root: it is what shows behind a page transition (App sets --bg). */
+html { background-color: var(--bg, #15120e) }
+body { margin: 0 }
 h1, h2, h3, p { margin: 0; font: inherit }
 a { color: inherit; text-decoration: underline; text-underline-offset: 3px }
 a:hover { opacity: .75 }
@@ -76,8 +78,11 @@ button { font: inherit }
 .hover-invert:hover { background: #1c1a15 !important; color: #f4f0e6 !important }
 
 /* Height left under the sticky header. 3D stages size themselves from this so a figure
-   and its controls fit on one screen. --hdr-h is published by whichever header is showing. */
-:root { --avail: calc(100dvh - var(--hdr-h, 60px) - 20px) }
+   and its controls fit on one screen. --hdr-h is published by whichever header is showing.
+   The small viewport height (address bar showing) doesn't change as a phone scrolls, so
+   figures don't resize and re-frame under the reader's thumb. */
+:root { --avail: calc(100vh - var(--hdr-h, 60px) - 20px) }
+@supports (height: 100svh) { :root { --avail: calc(100svh - var(--hdr-h, 60px) - 20px) } }
 /* Anything scrolled into view programmatically clears the sticky header. */
 [data-reveal] { scroll-margin-top: calc(var(--hdr-h, 60px) + 12px); scroll-margin-bottom: 12px }
 
@@ -118,6 +123,58 @@ button { font: inherit }
 @media (max-width: 1439px) { .hdr-records-label { display: none } }
 @media (max-width: 1299px) { .hdr-seed { display: none } }
 @media (max-width: 1119px) { .hdr-materials { display: none } }
+
+/* Page transitions (lib/transition.ts). The old page fades out onto the new page's colour,
+   then the new page rises in. The sticky header, the sidebar and the toast have names of
+   their own, so they cross-fade where they stand instead of fading with the page. */
+::view-transition-old(root) { animation: 130ms cubic-bezier(.4, 0, 1, 1) both vt-out }
+::view-transition-new(root) { animation: 300ms cubic-bezier(.2, .8, .2, 1) 110ms both vt-in }
+::view-transition-group(*) { animation-duration: 220ms }
+@keyframes vt-out { to { opacity: 0 } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(12px) } }
+.vt-header { view-transition-name: site-header }
+.vt-side { view-transition-name: site-side }
+.vt-toast { view-transition-name: toast }
+
+/* Into Inspect: the page jitters and loses its colour (0–140 ms), collapses to a bright line
+   like a monitor switching off (140–260 ms), and Inspect opens out of the line (260–420 ms).
+   The phases match the static in lib/synth.ts. Nothing flashes: only the line is bright. */
+html[data-vt='glitch'] :is(.vt-header, .vt-side) { view-transition-name: none }
+html[data-vt='glitch']::view-transition-old(root) { animation: 260ms linear both vt-glitch-off }
+html[data-vt='glitch']::view-transition-new(root) { animation: 160ms cubic-bezier(.15, .85, .3, 1) 260ms both vt-crt-on }
+@keyframes vt-glitch-off {
+  0% { transform: none; filter: none; animation-timing-function: steps(1, end) }
+  9% { transform: translate(-9px, 0) skewX(-3deg); filter: saturate(0) contrast(1.4); animation-timing-function: steps(1, end) }
+  19% { transform: translate(8px, 2px); filter: hue-rotate(70deg) saturate(2.2); animation-timing-function: steps(1, end) }
+  29% { transform: translate(-4px, -2px) skewX(2deg); filter: saturate(0) contrast(1.7); animation-timing-function: steps(1, end) }
+  40% { transform: translate(11px, 0); filter: hue-rotate(-50deg) saturate(2.4); animation-timing-function: steps(1, end) }
+  54% { transform: none; filter: saturate(0) contrast(1.3); animation-timing-function: cubic-bezier(.7, 0, .9, .5) }
+  88% { transform: scale(1.03, .006); filter: saturate(0) brightness(2.4); opacity: 1 }
+  100% { transform: scale(.5, .004); filter: saturate(0) brightness(3); opacity: 0 }
+}
+@keyframes vt-crt-on {
+  0% { transform: scale(.5, .004); filter: saturate(0) brightness(3) }
+  40% { transform: scale(1, .02); filter: saturate(.3) brightness(1.8) }
+  100% { transform: none; filter: none }
+}
+
+/* Things arriving: content rising into place (--i staggers it), a panel opening, a bar filling.
+   They fill backwards only, so once played they leave the element's own transform (tilt) alone. */
+.rise { animation: rise .55s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: calc(var(--i, 0) * 70ms) }
+@keyframes rise { from { opacity: 0; transform: translateY(14px) } }
+.reveal-in { animation: reveal-in .24s ease-out backwards }
+@keyframes reveal-in { from { opacity: 0; transform: translateY(-4px) } }
+.bar-grow { transform-origin: left; animation: bar-grow .9s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: calc(.3s + var(--i, 0) * 90ms) }
+@keyframes bar-grow { from { transform: scaleX(0) } }
+/* The toast is pinned at a slight angle, so its keyframes keep the angle. */
+.toast-in { animation: toast-in .34s cubic-bezier(.2, .9, .3, 1.15) backwards }
+.toast-out { animation: toast-out .18s ease-in both }
+@keyframes toast-in { from { opacity: 0; transform: translateY(26px) rotate(-1.5deg) } to { transform: rotate(-1.5deg) } }
+@keyframes toast-out { from { transform: rotate(-1.5deg) } to { opacity: 0; transform: translateY(14px) rotate(-1.5deg) } }
+.menu-in { animation: menu-in .22s cubic-bezier(.2, .8, .2, 1) backwards }
+.menu-out { animation: menu-out .16s ease-in both }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-10px) } }
+@keyframes menu-out { to { opacity: 0; transform: translateY(-6px) } }
 
 /* Reduced motion: every transition and animation completes instantly. */
 [data-motion='reduced'] *,

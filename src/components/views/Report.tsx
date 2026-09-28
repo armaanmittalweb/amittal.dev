@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { CAT_LABEL, LINKS, MATERIAL, PROJECTS, TARGETS, type Category } from '../../data/content'
 import { derive } from '../../lib/seed'
 import { useArchive } from '../../store'
@@ -62,10 +63,10 @@ export function Report() {
         </dl>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="label">ARCHIVE ANALYSIS · WHAT YOU INSPECTED</div>
-          {counts.map(x => (
+          {counts.map((x, i) => (
             <div key={x.c} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 30px', gap: 12, alignItems: 'center' }}>
               <span className="stencil" style={{ fontWeight: 700, fontSize: 19, letterSpacing: '.08em' }}>{CAT_LABEL[x.c]}</span>
-              <div aria-hidden="true" style={{ height: 10, border: '1px solid var(--line)' }}><div style={{ height: 8, width: Math.round(x.n / maxN * 100) + '%', background: x === top && x.n > 0 ? 'var(--accent)' : 'var(--muted)', transition: 'width .8s' }} /></div>
+              <div aria-hidden="true" style={{ height: 10, border: '1px solid var(--line)' }}><div className="bar-grow" style={{ '--i': i, height: 8, width: Math.round(x.n / maxN * 100) + '%', background: x === top && x.n > 0 ? 'var(--accent)' : 'var(--muted)', transition: 'width .8s' } as CSSProperties} /></div>
               <span className="mono" style={{ fontSize: 11, textAlign: 'right' }}>{x.n}</span>
             </div>
           ))}

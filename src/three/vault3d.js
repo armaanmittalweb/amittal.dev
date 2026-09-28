@@ -64,9 +64,17 @@ export class Vault3D extends HTMLElement {
     const wall = new T.Mesh(new T.RingGeometry(1.08,1.2,120), new T.MeshStandardMaterial({color:0x2a251e, metalness:.4, roughness:.8}));
     wall.position.z = -.05; root.add(wall);
     this.glowBase = new T.Color(0xffe2a8);
-    this.glowMat = new T.MeshBasicMaterial({color:0x000000});
+    // The light inside the vault: brightest in the middle, falling off toward the frame.
+    const fall = document.createElement('canvas'); fall.width = fall.height = 256;
+    const fg = fall.getContext('2d'), rg = fg.createRadialGradient(128,128,0,128,128,128);
+    rg.addColorStop(0,'#ffffff'); rg.addColorStop(.55,'#e4e4e4'); rg.addColorStop(1,'#8c8c8c');
+    fg.fillStyle = rg; fg.fillRect(0,0,256,256);
+    const fallTex = new T.CanvasTexture(fall); fallTex.colorSpace = T.SRGBColorSpace;
+    this.glowMat = new T.MeshBasicMaterial({color:0x000000, map:fallTex});
     const glow = new T.Mesh(new T.CircleGeometry(1.02,96), this.glowMat); glow.position.z = -.2; root.add(glow);
-    this.glowLight = new T.PointLight(0xffe2a8, 0, 6); this.glowLight.position.set(0,0,.4); root.add(this.glowLight);
+    // It sits inside the vault, behind the door, so it lights the door's edge and back as the
+    // door swings, never its face while it is still shut.
+    this.glowLight = new T.PointLight(0xffe2a8, 0, 6); this.glowLight.position.set(0,0,-.14); root.add(this.glowLight);
     const pivot = new T.Group(); pivot.position.set(-1.02,0,0); root.add(pivot); this.pivot = pivot;
     const door = new T.Group(); door.position.set(1.02,0,0); pivot.add(door);
     const slab = new T.Mesh(new T.CylinderGeometry(1,1,.2,120), steel); slab.rotation.x = Math.PI/2; slab.castShadow = true; slab.receiveShadow = true; door.add(slab);
@@ -94,8 +102,8 @@ export class Vault3D extends HTMLElement {
     kh.add(new T.Mesh(new T.CircleGeometry(.2,48), brass));
     const c = new T.Mesh(new T.CircleGeometry(.075,32), black); c.position.set(0,.08,.002); kh.add(c);
     const sl = new T.Mesh(new T.PlaneGeometry(.06,.2), black); sl.position.set(0,-.04,.002); kh.add(sl);
-    // The pointer tilts the door a little. Under reduced motion it stays square, so no frames are needed.
-    this.onMove = e => { const b = this.getBoundingClientRect(); this.mx = Math.max(-1,Math.min(1,((e.clientX-b.left)/b.width-.5)*2)); this.my = Math.max(-1,Math.min(1,((e.clientY-b.top)/b.height-.5)*2)); if (!still()) this.wake(); };
+    // A mouse tilts the door a little (a finger scrolling the page shouldn't). Under reduced motion it stays square, so no frames are needed.
+    this.onMove = e => { if (e.pointerType !== 'mouse') return; const b = this.getBoundingClientRect(); this.mx = Math.max(-1,Math.min(1,((e.clientX-b.left)/b.width-.5)*2)); this.my = Math.max(-1,Math.min(1,((e.clientY-b.top)/b.height-.5)*2)); if (!still()) this.wake(); };
     window.addEventListener('pointermove', this.onMove);
     // Resizing clears the canvas, so it is redrawn in the same frame.
     this.ro = new ResizeObserver(() => { const W=this.clientWidth, H=this.clientHeight; if(!W||!H) return; r.setSize(W,H); cam.aspect=W/H; cam.updateProjectionMatrix(); if (this.drawn) this.draw(performance.now()); });

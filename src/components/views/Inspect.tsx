@@ -67,7 +67,7 @@ export function Inspect() {
           <button type="button" onClick={() => step(1)} style={stepBtn}>NEXT →</button>
         </div>
       </div>
-      <div aria-live="polite" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div key={layerIdx} aria-live="polite" className="reveal-in" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="label">{layer.k}</div>
         <h2 className="stencil" style={{ fontWeight: 800, fontSize: 'clamp(28px,5vw,44px)', lineHeight: .95 }}>{layer.v}</h2>
         <p style={{ fontSize: 'clamp(16px,1.6vw + 10px,19px)', lineHeight: 1.45, textWrap: 'pretty' }}>{layer.why}</p>

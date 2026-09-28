@@ -2,7 +2,8 @@
 // mode: cabinet | graph | pipeline | seed | exploded | reel. data is JSON.
 // Picks are reported as window 'archive3d' events; the page owns all state.
 import * as THREE from 'three'
-import { disposeTree, releaseRenderer, sceneUnavailable, still, watchContext } from './shared.js'
+import { settled } from '../lib/transition'
+import { disposeTree, sceneUnavailable, still, watchContext } from './shared.js'
 
 const clamp=x=>Math.max(0,Math.min(1,x));
 const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
@@ -19,22 +20,59 @@ const STILL_T=30;
 // Nothing moves by itself then, so a view draws this many frames after something changes
 // (see wake), and after that only while the easing in frame_* is still moving something.
 const SETTLE=30;
+const smooth=x=>x*x*(3-2*x);
+/** Rises past 1 and settles back: things that pop into place. */
+const outBack=x=>{ const c=1.4; return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2); };
+
+// One renderer, one WebGL context, serves every view: only one is on screen at a time, and
+// the shaders compiled for one drawer are still there for the next. Its canvas moves into
+// whichever <archive-3d> is showing (`owner`).
+let shared=null, owner=null;
+function sharedRenderer(T){
+  if(shared) return shared;
+  const r=new T.WebGLRenderer({antialias:true,alpha:true});
+  r.setPixelRatio(Math.min(2,devicePixelRatio)); r.outputColorSpace=T.SRGBColorSpace;
+  r.toneMapping=T.ACESFilmicToneMapping; r.shadowMap.enabled=true; r.shadowMap.type=T.PCFSoftShadowMap;
+  const cv=r.domElement; cv.draggable=false; cv.setAttribute('draggable','false');
+  cv.style.cssText='display:block;width:100%;height:100%;outline:none;opacity:0';
+  Object.assign(cv.style,{userSelect:'none',webkitUserSelect:'none',webkitUserDrag:'none',touchAction:'pan-y',webkitTapHighlightColor:'transparent'});
+  cv.addEventListener('dragstart',e=>e.preventDefault());
+  // A context that stays lost fails whichever view has it, or the page if none does.
+  watchContext(cv,{dispatchEvent:ev=>(owner||window).dispatchEvent(ev)});
+  shared=r; return r;
+}
+
+// The small viewport height (address bar showing). Unlike innerHeight it doesn't change as
+// a phone scrolls, so the pipeline doesn't re-lay itself out under the reader's thumb.
+let probe=null;
+function viewHeight(){
+  if(!probe){ probe=document.createElement('div'); probe.style.cssText='position:fixed;top:0;left:0;width:0;height:100vh;height:100svh;visibility:hidden;pointer-events:none'; document.body.appendChild(probe); }
+  return probe.offsetHeight||innerHeight;
+}
 
 export class Archive3D extends HTMLElement{
   static get observedAttributes(){ return ['data','mat','hue','mode']; }
   connectedCallback(){
     Object.assign(this.style,{display:'block',width:'100%',height:'100%',position:'relative',touchAction:'pan-y'});
     this.alive=true; this.mx=0; this.my=0; this.spin=0;
-    (document.fonts?document.fonts.ready:Promise.resolve()).then(()=>{ if(this.alive&&!this.r) this.init(THREE); }).catch(e=>sceneUnavailable(this,e));
+    // The pipeline sizes itself from its rows; claiming that height now means nothing below
+    // it moves when the scene arrives.
+    if(this.mode==='pipeline'){ const n=(this.data.stages||[]).length; if(n) this.style.height=this.pipeLayout(n).h+'px'; }
+    // Start once the fonts are in (the labels are measured) and the page transition has
+    // finished, so building the scene never holds up the page arriving.
+    const fonts=document.fonts?document.fonts.ready:Promise.resolve();
+    Promise.all([fonts,settled()]).then(()=>{ if(this.alive&&!this.r) this.init(THREE); }).catch(e=>sceneUnavailable(this,e));
   }
   disconnectedCallback(){
     this.alive=false; cancelAnimationFrame(this.raf); this.raf=0; clearTimeout(this.openT);
     if(this.ro) this.ro.disconnect(); if(this.io) this.io.disconnect(); if(this.mo) this.mo.disconnect();
     window.removeEventListener('pointermove',this.onWinMove);
-    if(this.unwatch) this.unwatch();
+    (this.offs||[]).forEach(off=>off()); this.offs=[];
     if(this.overlay){ this.overlay.remove(); this.overlay=null; }
     disposeTree(this.scene); this.scene=null;
-    if(this.r){ releaseRenderer(this.r); this.r=null; this.ready=false; }
+    // The shared canvas goes back to waiting, hidden, for the next view.
+    if(this.r){ const cv=this.r.domElement; if(cv.parentNode===this) cv.remove(); cv.style.transition=''; cv.style.opacity='0'; if(owner===this) owner=null; this.r=null; }
+    this.ready=false; this.started=false; this.shown=false;
   }
   attributeChangedCallback(n,o,v){
     if(!this.ready||o===v) return;
@@ -50,55 +88,65 @@ export class Archive3D extends HTMLElement{
   get pal(){ return PAL[this.getAttribute('mat')]||PAL.paper; }
   get accent(){ const h=(+this.getAttribute('hue')||40)/360; return new this.T.Color().setHSL(h,.62,this.getAttribute('mat')==='paper'?.42:.64); }
 
+  /** Adds a listener to the shared canvas that goes when this view does. */
+  listen(el,type,fn){ el.addEventListener(type,fn); (this.offs||(this.offs=[])).push(()=>el.removeEventListener(type,fn)); }
   init(T){
     this.T=T;
-    const r=new T.WebGLRenderer({antialias:true,alpha:true});
-    r.setPixelRatio(Math.min(2,devicePixelRatio)); r.outputColorSpace=T.SRGBColorSpace;
-    r.toneMapping=T.ACESFilmicToneMapping; r.shadowMap.enabled=true; r.shadowMap.type=T.PCFSoftShadowMap;
-    r.domElement.style.cssText='display:block;width:100%;height:100%;outline:none';
-    this.appendChild(r.domElement); this.r=r; this.unwatch=watchContext(r.domElement,this);
+    const r=sharedRenderer(T); owner=this; this.r=r;
+    const cv=r.domElement; cv.style.transition=''; cv.style.opacity='0';
+    this.appendChild(cv);
     // Text sits over the canvas as real DOM, so it stays crisp and readable at any size.
-    this.overlay=document.createElement('div'); this.overlay.style.cssText='position:absolute;inset:0;pointer-events:none;overflow:hidden';
+    // Canvas and labels stay hidden until the first frame is drawn, then fade in together.
+    this.overlay=document.createElement('div'); this.overlay.style.cssText='position:absolute;inset:0;pointer-events:none;overflow:hidden;opacity:0';
     this.appendChild(this.overlay); this.tags=[];
     this.cam=new T.PerspectiveCamera(32,1,.1,100);
     // Lines (block outlines, leader lines) would otherwise catch any ray within a whole world unit
     // and hand the pick to the neighbouring block.
     this.ray=new T.Raycaster(); this.ray.params.Line.threshold=.01; this.ptr=new T.Vector2(-9,-9);
-    const cv=r.domElement; cv.draggable=false; cv.setAttribute('draggable','false');
-    Object.assign(cv.style,{userSelect:'none',webkitUserSelect:'none',webkitUserDrag:'none',touchAction:'pan-y',webkitTapHighlightColor:'transparent'});
     this.style.userSelect='none'; this.style.webkitUserSelect='none';
     const setPtr=e=>{ const b=cv.getBoundingClientRect(); this.ptr.set(((e.clientX-b.left)/b.width)*2-1, -((e.clientY-b.top)/b.height)*2+1); };
-    cv.addEventListener('dragstart',e=>e.preventDefault());
-    cv.addEventListener('pointerdown',e=>{ if(e.button>0) return; e.preventDefault(); setPtr(e); try{ cv.setPointerCapture(e.pointerId); }catch{ /* pointer already gone */ } this.drag={x:e.clientX,moved:0}; this.lastTouch=performance.now(); });
-    cv.addEventListener('pointermove',e=>{ setPtr(e); if(!this.drag) return; const dx=e.clientX-this.drag.x; this.drag.x=e.clientX; this.drag.moved+=Math.abs(dx); this.lastTouch=performance.now();
+    this.listen(cv,'pointerdown',e=>{ if(e.button>0) return; e.preventDefault(); setPtr(e); try{ cv.setPointerCapture(e.pointerId); }catch{ /* pointer already gone */ } this.drag={x:e.clientX,moved:0}; this.lastTouch=performance.now(); });
+    this.listen(cv,'pointermove',e=>{ setPtr(e); if(!this.drag) return; const dx=e.clientX-this.drag.x; this.drag.x=e.clientX; this.drag.moved+=Math.abs(dx); this.lastTouch=performance.now();
       const dm=this['drag_'+this.mode]; if(dm) dm.call(this,dx); else if(this.draggable) this.spin+=dx*.008; });
     const end=e=>{ const d=this.drag; this.drag=null; try{ cv.releasePointerCapture(e.pointerId); }catch{ /* never captured */ } return d; };
-    cv.addEventListener('pointerup',e=>{ const d=end(e); if(d&&d.moved<6){ setPtr(e); const hit=this.pick(); if(hit){ const f=this['pick_'+this.mode]; if(f) f.call(this,hit.userData.pick,this.lastHit); } } if(e.pointerType!=='mouse') this.ptr.set(-9,-9); });
-    cv.addEventListener('pointercancel',e=>{ end(e); this.ptr.set(-9,-9); });
-    cv.addEventListener('pointerleave',()=>{ if(!this.drag) this.ptr.set(-9,-9); });
-    ['pointerdown','pointermove','pointerup','pointercancel','pointerleave'].forEach(t=>cv.addEventListener(t,()=>this.wake()));
-    cv.addEventListener('webglcontextrestored',()=>this.wake());
-    this.onWinMove=e=>{ const b=this.getBoundingClientRect(); this.mx=Math.max(-1,Math.min(1,((e.clientX-b.left)/b.width-.5)*2)); this.my=Math.max(-1,Math.min(1,((e.clientY-b.top)/b.height-.5)*2)); };
+    this.listen(cv,'pointerup',e=>{ const d=end(e); if(d&&d.moved<6){ setPtr(e); const hit=this.pick(); if(hit){ const f=this['pick_'+this.mode]; if(f) f.call(this,hit.userData.pick,this.lastHit); } } if(e.pointerType!=='mouse') this.ptr.set(-9,-9); });
+    this.listen(cv,'pointercancel',e=>{ end(e); this.ptr.set(-9,-9); });
+    this.listen(cv,'pointerleave',()=>{ if(!this.drag) this.ptr.set(-9,-9); });
+    ['pointerdown','pointermove','pointerup','pointercancel','pointerleave'].forEach(t=>this.listen(cv,t,()=>this.wake()));
+    this.listen(cv,'webglcontextrestored',()=>this.wake());
+    // A mouse anywhere on the page leans the scene a little toward it. Touch doesn't: a finger
+    // scrolling the page would leave the scene tilted toward wherever it last was.
+    this.onWinMove=e=>{ if(e.pointerType!=='mouse') return; const b=this.getBoundingClientRect(); this.mx=Math.max(-1,Math.min(1,((e.clientX-b.left)/b.width-.5)*2)); this.my=Math.max(-1,Math.min(1,((e.clientY-b.top)/b.height-.5)*2)); };
     window.addEventListener('pointermove',this.onWinMove);
     this.ro=new ResizeObserver(()=>this.resize()); this.ro.observe(this);
-    this.visible=true; this.io=new IntersectionObserver(es=>{ this.visible=es[es.length-1].isIntersecting; if(this.visible) this.wake(); }); this.io.observe(this);
+    // Frames are drawn while any of the view is on screen. Its intro waits until a fair part
+    // of it is (inView), so a figure below the fold plays its entrance when the reader gets there.
+    this.visible=true; this.io=new IntersectionObserver(es=>{ const e=es[es.length-1]; this.visible=e.isIntersecting;
+      if(e.intersectionRatio>=.35||e.intersectionRect.height>=innerHeight*.35) this.inView=true;
+      if(this.visible) this.wake(); },{threshold:[0,.1,.2,.35,.5]}); this.io.observe(this);
     // The MOTION toggle can change this at any time: full motion starts the loop, reduced draws the still frame.
     this.mo=new MutationObserver(()=>this.wake()); this.mo.observe(document.documentElement,{attributeFilter:['data-motion']});
     // Full motion draws every frame while the view is on screen; reduced motion stops once it has settled.
     this.tick=now=>{
       this.raf=0;
-      if(!this.visible||!this.scene) return; // the IntersectionObserver wakes it again
+      if(!this.started||!this.visible||!this.scene) return; // compiling finishes, or the IntersectionObserver, wakes it again
       const calm=still();
       const dt=calm?0:Math.min(.05,(now-(this.last||now))/1000); this.last=now;
-      if(!this.t0) this.t0=now;
-      this.frame(calm?STILL_T:(now-this.t0)/1000,dt,calm);
+      if(!this.t0&&this.inView) this.t0=now; // until then the view holds its opening pose
+      this.frame(calm?STILL_T:this.t0?(now-this.t0)/1000:0,dt,calm);
       r.render(this.scene,this.cam);
       this.placeTags();
+      if(!this.shown){ this.shown=true; for(const el of [cv,this.overlay]){ el.style.transition='opacity .45s ease-out'; el.style.opacity='1'; } }
       const moving=calm&&this.drift()>1e-4; this.settle--;
       if((!calm||moving||this.settle>0)&&!this.raf) this.raf=requestAnimationFrame(this.tick); // a wake during the frame may have queued one
     };
     this.ready=true; this.rebuild();
+    // Compile this view's shaders before its first frame: off the main thread where the
+    // browser can (KHR_parallel_shader_compile), and not at all once prewarm() has done it.
+    r.compileAsync(this.scene,this.cam).catch(()=>{}).then(()=>{ if(!this.alive||this.r!==r) return; this.started=true; this.wake(); });
   }
+  /** How far to ease toward a target this frame: k per 60 Hz frame, the same at any refresh rate. Reduced motion lands at once. */
+  damp(k){ return this.calm?1:1-Math.pow(1-k,this.dt*60); }
   /** Asks for frames after anything that can change the picture: input, data, size, visibility, the motion setting. */
   wake(){ this.settle=SETTLE; if(!this.raf&&this.tick) this.raf=requestAnimationFrame(this.tick); }
   /** The largest change in any transform or material since the last call, so reduced motion knows when the easing has landed. */
@@ -143,14 +191,16 @@ export class Archive3D extends HTMLElement{
     this.resize();
   }
   frame(t,dt,calm){
+    this.dt=dt; this.calm=calm;
     const hov=this.pick(); this.hover=hov?hov.userData.pick:null;
     if(this.hover!==this.lastHov){ this.lastHov=this.hover; emit({type:'hover',mode:this.mode,i:this.hover}); }
     this.r.domElement.style.cursor=this.drag&&this.drag.moved>5?'grabbing':(hov?'pointer':(this.draggable||this['drag_'+this.mode]?'grab':'default'));
     if(!this.drag&&performance.now()-(this.lastTouch||0)>3500) this.spin+=this.autoSpin*dt;
     if(isFinite(this.spinLimit)) this.spin=Math.max(-this.spinLimit,Math.min(this.spinLimit,this.spin));
     const px=calm?0:this.mx, py=calm?0:this.my;
-    this.root.rotation.y=lerp(this.root.rotation.y,this.baseRot.y+this.spin+px*.12,.08);
-    this.root.rotation.x=lerp(this.root.rotation.x,this.baseRot.x+py*.06,.08);
+    const k=this.damp(.08);
+    this.root.rotation.y=lerp(this.root.rotation.y,this.baseRot.y+this.spin+px*.12,k);
+    this.root.rotation.x=lerp(this.root.rotation.x,this.baseRot.x+py*.06,k);
     const f=this['frame_'+this.mode]; if(f) f.call(this,t,dt);
   }
   ground(y,size){
@@ -172,10 +222,18 @@ export class Archive3D extends HTMLElement{
       el.addEventListener('pointerenter',()=>{ this.tagHover=o.key; this.wake(); });
       el.addEventListener('pointerleave',()=>{ if(this.tagHover===o.key) this.tagHover=null; this.wake(); });
     }
+    // Hidden until placeTags puts it by its anchor, so a new label never shows in the corner.
+    el.style.visibility='hidden';
     this.overlay.appendChild(el);
-    const t={el,anchor,left:o.align==='left',top:!!o.top,w:0,h:0,s:''}; this.tags.push(t); return t;
+    const t={el,anchor,left:o.align==='left',top:!!o.top,w:0,h:0,s:'',a:1}; this.tags.push(t); return t;
   }
   tagState(t,s){ if(t.s!==s){ t.s=s; t.el.dataset.s=s; } }
+  /**
+   * A label's opacity while its part of the scene arrives, set every frame, so the
+   * stylesheet's opacity transition is off meanwhile. 1 hands the label back to the stylesheet.
+   */
+  tagFade(t,a){ a=a>=.999?1:Math.max(0,a); if(t.a===a) return; t.a=a; const st=t.el.style;
+    if(a===1){ st.opacity=''; st.transition=''; } else { st.transition='none'; st.opacity=a.toFixed(3); } }
   /** Moves every label to its anchor's projected position, clamped inside the canvas. */
   placeTags(){
     if(!this.tags.length) return;
@@ -237,8 +295,8 @@ export class Archive3D extends HTMLElement{
   // Drawers ease toward their target by the same curve at any refresh rate (12% per 60 Hz
   // frame), so a picked drawer runs out as z = 1.2 - (1.2 - z0)·e^(-t/0.13s): the page's
   // drawer sound is shaped on that. Reduced motion jumps straight there.
-  frame_cabinet(t,dt){
-    const k=still()?1:1-Math.pow(1-.12,dt*60);
+  frame_cabinet(t){
+    const k=this.damp(.12);
     this.drawers.forEach((dr,i)=>{ let tg=0; if(this.hover===i) tg=.28; if(this.opened===i) tg=1.2;
       const intro=(1-ease(clamp((t-i*.07)/.7)))*.6; dr.z=lerp(dr.z,tg,k); dr.g.position.z=dr.z+intro; });
   }
@@ -257,12 +315,18 @@ export class Archive3D extends HTMLElement{
       (this.adj[a]=this.adj[a]||[]).push(b); (this.adj[b]=this.adj[b]||[]).push(a);
       const on=nodes.find(n=>n.id===a).lit&&nodes.find(n=>n.id===b).lit, e={a,b,mats:[]};
       if(on){ const m=new T.MeshBasicMaterial({color:acc,transparent:true}); m.userData.base=1; e.mats.push(m); this.root.add(new T.Mesh(new T.TubeGeometry(new T.LineCurve3(A,B),1,.016,6),m));
-        for(let k=0;k<2;k++){ const sm=new T.MeshBasicMaterial({color:0xffffff,transparent:true}); sm.userData.base=1; e.mats.push(sm); const s=new T.Mesh(new T.SphereGeometry(.04,10,8),sm); this.root.add(s); this.pulses.push({s,A,B,o:k*.5+Math.random()*.2}); } }
+        for(let k=0;k<2;k++){ const sm=new T.MeshBasicMaterial({color:0xffffff,transparent:true}); sm.userData.base=1; e.mats.push(sm); const s=new T.Mesh(new T.SphereGeometry(.04,10,8),sm); this.root.add(s); this.pulses.push({s,A,B,a,b,o:k*.5+Math.random()*.2}); } }
       else { const m=new T.LineDashedMaterial({color:new T.Color(p.muted),dashSize:.08,gapSize:.07,transparent:true,opacity:.7}); m.userData.base=.7; e.mats.push(m); const l=new T.Line(new T.BufferGeometry().setFromPoints([A,B]),m); l.computeLineDistances(); this.root.add(l); }
       this.edgeObjs.push(e);
     });
+    // The network assembles itself in the order the work happened: each node pops in by
+    // year, and an edge draws in once both of its ends are there.
+    const byYear=[...nodes].sort((a,b)=>String(a.year).localeCompare(String(b.year))), rank={};
+    byYear.forEach((n,i)=>{ rank[n.id]=i; });
+    this.edgeObjs.forEach(e=>{ e.rank=Math.max(rank[e.a],rank[e.b]); e.mats.forEach(m=>{ m.userData.o=m.userData.base; }); });
+    this.pulses.forEach(p=>{ p.rank=Math.max(rank[p.a],rank[p.b]); });
     this.nodeGroups=[];
-    nodes.forEach(n=>{ const g=new T.Group(); g.position.copy(pos[n.id]); g.userData.pick=n.id;
+    nodes.forEach(n=>{ const g=new T.Group(); g.position.copy(pos[n.id]); g.userData.pick=n.id; g.userData.rank=rank[n.id]; g.userData.sc=1;
       if(n.lit){ const s=new T.Mesh(new T.SphereGeometry(.18,32,24),new T.MeshStandardMaterial({color:acc,emissive:acc,emissiveIntensity:.5,roughness:.35})); s.castShadow=true; g.add(s); }
       else g.add(new T.Mesh(new T.IcosahedronGeometry(.18,1),new T.MeshBasicMaterial({color:new T.Color(p.muted),wireframe:true})));
       g.add(new T.Mesh(new T.SphereGeometry(.4,12,8),new T.MeshBasicMaterial({visible:false})));
@@ -276,12 +340,16 @@ export class Archive3D extends HTMLElement{
   }
   update_graph(d){ if(JSON.stringify(d.nodes)!==this.graphSig) return this.rebuild(); this.sel=d.sel; }
   frame_graph(t){
-    if(performance.now()-(this.lastTouch||0)>3500) this.baseRot.y=lerp(this.baseRot.y,Math.sin(t*.28)*.3,.02);
-    const hv=this.hover||this.tagHover, f=hv||this.sel, adj=f?(this.adj[f]||[]):[];
-    this.pulses.forEach(p=>p.s.position.lerpVectors(p.A,p.B,(t*.4+p.o)%1));
-    this.edgeObjs.forEach(e=>{ const k=!f||e.a===f||e.b===f?1:.12; e.mats.forEach(m=>{ m.opacity=lerp(m.opacity,m.userData.base*k,.15); }); });
-    this.nodeGroups.forEach(g=>{ const id=g.userData.pick, near=!f||id===f||adj.includes(id);
-      g.scale.setScalar(lerp(g.scale.x,hv===id?1.25:(near?1:.8),.15));
+    if(performance.now()-(this.lastTouch||0)>3500) this.baseRot.y=lerp(this.baseRot.y,Math.sin(t*.28)*.3,this.damp(.02));
+    const hv=this.hover||this.tagHover, f=hv||this.sel, adj=f?(this.adj[f]||[]):[], k=this.damp(.15);
+    const nodeIn=r=>clamp((t-.1-r*.1)/.45), edgeIn=r=>smooth(clamp((t-.3-r*.1)/.35));
+    this.pulses.forEach(p=>{ p.s.position.lerpVectors(p.A,p.B,(t*.4+p.o)%1); p.s.scale.setScalar(edgeIn(p.rank)); });
+    this.edgeObjs.forEach(e=>{ const on=!f||e.a===f||e.b===f?1:.12, a=edgeIn(e.rank);
+      e.mats.forEach(m=>{ m.userData.o=lerp(m.userData.o,m.userData.base*on,k); m.opacity=m.userData.o*a; }); });
+    this.nodeGroups.forEach(g=>{ const id=g.userData.pick, near=!f||id===f||adj.includes(id), a=nodeIn(g.userData.rank);
+      g.userData.sc=lerp(g.userData.sc,hv===id?1.25:(near?1:.8),k);
+      g.scale.setScalar(g.userData.sc*Math.max(.001,outBack(a)));
+      this.tagFade(g.userData.tag,clamp((t-.25-g.userData.rank*.1)/.3));
       this.tagState(g.userData.tag,[near?'':'dim',id===this.sel?'sel':'',g.userData.lit?'':'off'].join(' ').trim()); });
     const sg=this.nodeGroups.find(g=>g.userData.pick===this.sel); this.ring.visible=!!sg;
     if(sg){ this.ring.position.copy(sg.position); this.ring.lookAt(this.cam.position); this.ring.scale.setScalar(sg.scale.x*(1+Math.sin(t*3)*.05)); }
@@ -297,13 +365,13 @@ export class Archive3D extends HTMLElement{
    */
   pipeLayout(n){
     const W=this.clientWidth||600, hdr=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-h'))||60;
-    const maxH=Math.max(200,Math.min(520,innerHeight-hdr-150)), opts=[];
+    const vh=viewHeight(), maxH=Math.max(200,Math.min(520,vh-hdr-150)), opts=[];
     for(let c=n;c>=Math.min(2,n);c--){
       const rows=Math.ceil(n/c), cols=Math.ceil(n/rows), w=(cols-1)*1.32+1.35, hh=(rows-1)*1.25+1.6;
       const h=Math.round(Math.min(maxH,Math.max(200,W*hh/w))), px=Math.min(W/w,h/hh)*1.05;
       if(!opts.some(o=>o.cols===cols)) opts.push({cols,rows,w,hh,h,px});
     }
-    const comfort=Math.min(maxH,Math.max(300,innerHeight*.5)), fits=opts.filter(o=>o.h<=comfort);
+    const comfort=Math.min(maxH,Math.max(300,vh*.5)), fits=opts.filter(o=>o.h<=comfort);
     return fits.length?fits.reduce((a,b)=>b.px>a.px+2?b:a):opts.reduce((a,b)=>b.h<a.h?b:a);
   }
   build_pipeline(d){
@@ -328,8 +396,8 @@ export class Archive3D extends HTMLElement{
       g.add(new T.LineSegments(new T.EdgesGeometry(box.geometry),new T.LineBasicMaterial({color:new T.Color(p.ink),transparent:true,opacity:.45})));
       this.root.add(g); this.pickables.push(g); this.stages.push({g,fm,base:pts[i].clone(),drop:0});
     });
-    const cm=new T.MeshStandardMaterial({color:new T.Color(p.muted),roughness:.5});
-    for(let i=0;i<n-1;i++){ const A=pts[i],B=pts[i+1], dir=B.clone().sub(A), len=dir.length(); const c=new T.Mesh(new T.CylinderGeometry(.025,.025,len,10),cm); c.position.copy(A).add(B).multiplyScalar(.5); c.position.z=-.05; c.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),dir.normalize()); this.root.add(c); }
+    const cm=new T.MeshStandardMaterial({color:new T.Color(p.muted),roughness:.5}); this.links=[];
+    for(let i=0;i<n-1;i++){ const A=pts[i],B=pts[i+1], dir=B.clone().sub(A), len=dir.length(); const c=new T.Mesh(new T.CylinderGeometry(.025,.025,len,10),cm); c.position.copy(A).add(B).multiplyScalar(.5); c.position.z=-.05; c.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),dir.normalize()); this.root.add(c); this.links.push(c); }
     const pc=Math.max(12,n*3); this.parts=[];
     for(let k=0;k<pc;k++){ const m=new T.MeshBasicMaterial({color:acc.clone()}); const s=new T.Mesh(new T.SphereGeometry(.05,12,8),m); this.root.add(s); this.parts.push({s,o:k/pc,j:new T.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5)}); }
     this.acc=acc; this.err=new T.Color('#d0513f'); this.white=new T.Color(1,1,1); this.dim=new T.Color(.5,.5,.5);
@@ -344,18 +412,24 @@ export class Archive3D extends HTMLElement{
   }
   update_pipeline(d){ if(JSON.stringify(d.stages)!==this.lastStages) return this.rebuild(); this.removed=d.removed; }
   pointAt(u){ const pts=this.pts, n=pts.length; u=Math.max(0,Math.min(n-1,u)); const i=Math.min(n-2,Math.floor(u)); return pts[i].clone().lerp(pts[i+1],u-i); }
+  // The blocks are set down one after another in flow order, each link drawing in once the
+  // next block has landed, and then the flow starts. A particle fades in at the first stage
+  // and out at the last, so looping round never shows as a jump back across the figure.
   frame_pipeline(t){
-    const rem=this.removed, n=this.stages.length;
-    this.stages.forEach((s,i)=>{ const isRem=rem===i, after=rem!=null&&i>rem;
-      s.drop=lerp(s.drop,isRem?1:0,.1);
-      s.g.position.y=s.base.y-s.drop*.5+(this.hover===i?.07:0)+Math.sin(t*1.6+i)*.02;
+    const rem=this.removed, n=this.stages.length, k=this.damp(.1);
+    const land=i=>ease(clamp((t-.05-i*.08)/.45));
+    this.stages.forEach((s,i)=>{ const isRem=rem===i, after=rem!=null&&i>rem, a=land(i);
+      s.drop=lerp(s.drop,isRem?1:0,k);
+      s.g.position.y=s.base.y-s.drop*.5+(this.hover===i?.07:0)+Math.sin(t*1.6+i)*.02+(1-a)*.55;
       s.g.position.z=s.base.z-s.drop*.25; s.g.rotation.x=s.drop*.45; s.g.rotation.z=s.drop*(i%2?.18:-.18);
-      s.fm.color.lerp(isRem?this.err:(after?this.dim:this.white),.1); });
+      s.g.scale.setScalar(.001+.999*Math.min(1,a*1.6));
+      s.fm.color.lerp(isRem?this.err:(after?this.dim:this.white),k); });
+    this.links.forEach((c,i)=>{ c.scale.y=.001+.999*smooth(clamp((t-.3-i*.08)/.3)); });
     if(n<2) return;
-    const limit=rem==null?n-1:Math.max(0,rem-.6);
+    const flow=smooth(clamp((t-.3-n*.08)/.4)), limit=rem==null?n-1:Math.max(0,rem-.6), kp=this.damp(.2), kr=this.damp(.3);
     this.parts.forEach(p=>{ const u=((t*.32+p.o)%1)*(n-1);
-      if(u<=limit||rem==null){ p.s.position.copy(this.pointAt(u)); p.s.material.color.lerp(this.acc,.2); p.s.scale.setScalar(1); }
-      else { const q=this.pointAt(limit); q.addScaledVector(p.j,.18+Math.sin(t*9+p.o*20)*.05); p.s.position.copy(q); p.s.material.color.lerp(this.err,.3); p.s.scale.setScalar(.7); } });
+      if(u<=limit||rem==null){ const ends=smooth(clamp(Math.min(u,n-1-u)/.3)); p.s.position.copy(this.pointAt(u)); p.s.material.color.lerp(this.acc,kp); p.s.scale.setScalar(.001+flow*ends); }
+      else { const q=this.pointAt(limit); q.addScaledVector(p.j,.18+Math.sin(t*9+p.o*20)*.05); p.s.position.copy(q); p.s.material.color.lerp(this.err,kr); p.s.scale.setScalar(.001+.7*flow); } });
   }
   pick_pipeline(i){ emit({type:'stage',i}); }
 
@@ -403,8 +477,11 @@ export class Archive3D extends HTMLElement{
   }
   update_exploded(d){ if(JSON.stringify(d.layers||[])!==this.layerSig) return this.rebuild(); this.sel=d.sel==null?null:d.sel; }
   pick_exploded(i){ emit({type:'layer',i}); }
-  frame_exploded(t){ const k=ease(clamp((t-.3)/1.4)), n=this.layers.length, sel=this.sel, hov=this.hover!=null?this.hover:this.tagHover;
-    this.layers.forEach((h,i)=>{ const tg=i===sel?1:(hov===i?.35:0); h.userData.o=lerp(h.userData.o,tg,.12);
+  frame_exploded(t){ const k=ease(clamp((t-.3)/1.4)), n=this.layers.length, sel=this.sel, hov=this.hover!=null?this.hover:this.tagHover, kd=this.damp(.12);
+    // Stacked, the labels would sit on top of each other; they fade in as the layers part.
+    const tagIn=clamp((k-.45)/.5);
+    this.layers.forEach((h,i)=>{ const tg=i===sel?1:(hov===i?.35:0); h.userData.o=lerp(h.userData.o,tg,kd);
+      this.tagFade(h.userData.tag,tagIn);
       h.position.y=(i-(n-1)/2)*this.gap*k-(1-k)*.4; h.position.z=h.userData.o*.75; h.position.x=-h.userData.o*.2;
       h.userData.anchor.position.set(1.42,(i-(n-1)/2)*this.gap*k-(1-k)*.4,0);
       this.tagState(h.userData.tag,[sel==null||i===sel||hov===i?'':'dim',i===sel?'sel':''].join(' ').trim()); });
@@ -445,4 +522,48 @@ export class Archive3D extends HTMLElement{
     if(hv!==this.reelHov){ this.reelHov=hv; this.drawReel(); this.reelTex.needsUpdate=true; }
     if(this.hover==null&&!this.drag) this.reelTex.offset.x+=dt*.012;
   }
+}
+
+// Enough of each view to compile every material it can use (lit and unlit nodes, a
+// recovered drawer, a two-stage pipeline...).
+const WARM=[
+  ['cabinet','paper',{items:[{num:'01',label:'A',key:'a',mat:'paper',seen:true}]}],
+  ['graph','draft',{nodes:[{id:'a',label:'A',year:'1',x:0,y:0,lit:true},{id:'b',label:'B',year:'2',x:99,y:0,lit:true},{id:'c',label:'C',year:'3',x:0,y:99,lit:false}],edges:[['a','b'],['a','c']]}],
+  ['pipeline','draft',{stages:['A','B']}],
+  ['seed','film',{bits:'10',hex:'80'}],
+  ['exploded','film',{layers:[]}],
+  ['reel','film',{frames:['R-01|A']}],
+];
+const warmKeep=[];
+let warmed=null;
+/**
+ * Compiles every view's shaders on the shared renderer ahead of time, off the main thread
+ * where the browser can, so opening a drawer doesn't stall while they build. The sample
+ * materials are kept, never disposed, which keeps their programs in the renderer's cache.
+ */
+export function prewarm(){
+  if(warmed) return warmed;
+  warmed=(async()=>{
+    const T=THREE, r=sharedRenderer(T), w=document.createElement('archive-3d'); // never connected: only its builders run
+    w.T=T; w.overlay=document.createElement('div'); w.tags=[]; w.aspect=1.6; w.cam=new T.PerspectiveCamera(32,1.6,.1,100);
+    for(const [mode,mat,data] of WARM){
+      w.scene=null; w.setAttribute('mode',mode); w.setAttribute('mat',mat); w.setAttribute('hue','40'); w.setAttribute('data',JSON.stringify(data));
+      w.rebuild();
+      await r.compileAsync(w.scene,w.cam);
+      w.scene.traverse(o=>{ if(o.geometry) o.geometry.dispose(); for(const m of [].concat(o.material||[])){ warmKeep.push(m); if(m.map) m.map.dispose(); } });
+    }
+    // The shadow pass draws casters with its own depth material, into the shadow map: one
+    // variant per side, and one that cuts out by texture (the film's sprocket holes).
+    // Compiling them into a render target under the same lights gives the same programs.
+    w.scene=null; w.setAttribute('mode','none'); w.rebuild();
+    const D=(o)=>new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,...o}), box=new T.BoxGeometry();
+    const cut=new T.DataTexture(new Uint8Array([255,255,255,255]),1,1);
+    for(const m of [D({side:T.BackSide}),D({side:T.DoubleSide}),D({side:T.DoubleSide,map:cut,alphaTest:.5})]){ w.root.add(new T.Mesh(box,m)); warmKeep.push(m); }
+    // Only the synchronous part runs with the target bound, so a view drawing meanwhile still draws to the screen.
+    const rt=new T.WebGLRenderTarget(1,1); let depthReady; r.setRenderTarget(rt);
+    try{ depthReady=r.compileAsync(w.scene,w.cam); } finally{ r.setRenderTarget(null); }
+    await depthReady; rt.dispose();
+    w.scene=null; w.overlay.textContent='';
+  })().catch(()=>{});
+  return warmed;
 }

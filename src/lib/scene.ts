@@ -27,9 +27,15 @@ export function markSceneBroken() {
 // on window, from before any element exists, catches failures during connect as well.
 window.addEventListener('scene-unavailable', markSceneBroken)
 
-/** Loads three.js and defines the custom elements, once. */
+const whenIdle = (f: () => void) =>
+  'requestIdleCallback' in window ? requestIdleCallback(f, { timeout: 4000 }) : setTimeout(f, 1500)
+
+/**
+ * Loads three.js and defines the custom elements, once. Then, while the page is idle, the
+ * drawers' shaders are compiled ahead of time so none of them stalls when it opens.
+ */
 export function registerScenes() {
-  registration ??= import('../three/register.js')
+  registration ??= import('../three/register.js').then(m => { whenIdle(() => { m.prewarm() }); return m })
   return registration
 }
 

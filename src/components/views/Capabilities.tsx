@@ -41,7 +41,7 @@ export function Capabilities() {
           )
           if (!cap || group !== g) return [cell]
           return [cell, (
-            <div key="xref" ref={panel} data-reveal style={{ gridColumn: '1 / -1', background: 'var(--panel)', borderRight: '1.5px solid var(--ink)', borderBottom: '1.5px solid var(--ink)', padding: 'clamp(18px,3vw,26px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,220px),1fr))', gap: '18px 28px' }}>
+            <div key="xref" ref={panel} data-reveal className="reveal-in" style={{ gridColumn: '1 / -1', background: 'var(--panel)', borderRight: '1.5px solid var(--ink)', borderBottom: '1.5px solid var(--ink)', padding: 'clamp(18px,3vw,26px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,220px),1fr))', gap: '18px 28px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div className="label">CROSS-REFERENCE</div>
                 <h2 className="stencil" style={{ fontWeight: 800, fontSize: 'clamp(30px,5vw,40px)', lineHeight: .95 }}>{cap.name}</h2>

@@ -5,3 +5,4 @@ import { Vault3D } from './vault3d.js'
 
 if (!customElements.get('archive-3d')) customElements.define('archive-3d', Archive3D)
 if (!customElements.get('vault-3d')) customElements.define('vault-3d', Vault3D)
+export { prewarm } from './archive3d.js'

@@ -78,7 +78,7 @@ export function Hub() {
             </div>
             <div aria-live="polite">
               {results && results.length > 0 && (
-                <div style={{ borderTop: '1.5px solid var(--ink)', padding: '6px 16px 16px', display: 'flex', flexDirection: 'column' }}>
+                <div className="reveal-in" style={{ borderTop: '1.5px solid var(--ink)', padding: '6px 16px 16px', display: 'flex', flexDirection: 'column' }}>
                   <div className="label" style={{ padding: '10px 0' }}>MATCHES · {String(results.length).padStart(2, '0')}</div>
                   {results.map(r => {
                     const p = PROJECTS.find(x => x.id === r.id)!
@@ -97,10 +97,10 @@ export function Hub() {
                 </div>
               )}
               {results && results.length === 0 && (
-                <div style={{ borderTop: '1.5px solid var(--ink)', padding: '14px 16px', fontStyle: 'italic', fontSize: 17, color: 'var(--muted)' }}>No records match. Try RAG, speech, low latency or React.</div>
+                <div className="reveal-in" style={{ borderTop: '1.5px solid var(--ink)', padding: '14px 16px', fontStyle: 'italic', fontSize: 17, color: 'var(--muted)' }}>No records match. Try RAG, speech, low latency or React.</div>
               )}
               {secret && (
-                <div style={{ borderTop: '1.5px solid var(--ink)', padding: 16, display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div className="reveal-in" style={{ borderTop: '1.5px solid var(--ink)', padding: 16, display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span className="stencil" style={{ fontWeight: 800, fontSize: 26, letterSpacing: '.08em', color: 'var(--stamp)' }}>{secret.title}</span>
                     <span style={{ fontSize: 19, fontStyle: 'italic' }}>{secret.body}</span>

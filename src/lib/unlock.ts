@@ -22,6 +22,13 @@ export const GLOW = { at: .7, dur: .5 }
 export const KEY_TURN = { dur: .55, curve: [.3, .7, .2, 1] as const }
 /** The vault then zooms past the viewer: a CSS transition on its container. */
 export const ZOOM = { at: 1.2, dur: 1, curve: [.7, 0, .2, 1] as const }
+/**
+ * Once the door is nearly open, its light floods out and fills the screen, accelerating as
+ * it comes. The next screen is the same paper colour, so it is simply there under the light.
+ */
+export const FLOOD = { at: 1.45, dur: .8, curve: [.55, 0, .8, .35] as const }
+/** The door's opening, as a fraction of the vault's box: 1.02 scene units of the 2.4652 framed. */
+export const OPENING = 1.02 / 2.4652
 /** When the Entrance hands over to the next screen, measured from the key turning. */
 export const UNLOCK_END = 2.35
 

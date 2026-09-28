@@ -47,7 +47,7 @@ export function Research() {
                   <span className="mono" aria-hidden="true">{open ? '−' : '+'}</span>
                 </button>
                 {open && (
-                  <dl style={{ margin: 0, padding: desk ? '0 18px 20px 104px' : '0 12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <dl className="reveal-in" style={{ margin: 0, padding: desk ? '0 18px 20px 104px' : '0 12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {r.rows.map(([k, v]) => (
                       <div key={k} style={{ display: 'grid', gridTemplateColumns: desk ? '100px 1fr' : '1fr', gap: desk ? 12 : 2 }}>
                         <dt className="mono" style={{ fontSize: 9, letterSpacing: '.12em', color: 'var(--muted)', paddingTop: 4 }}>{k}</dt>
