@@ -70,7 +70,7 @@ export function Archivist() {
           style={{ flex: 1, minWidth: 0, background: 'transparent', border: 0, color: 'var(--ink)', padding: '18px 16px', fontFamily: "'Newsreader',serif", fontStyle: 'italic', fontSize: 22, outline: 'none' }} />
         <button type="submit" className="stencil" style={{ fontWeight: 700, fontSize: 20, letterSpacing: '.12em', padding: '0 22px', background: 'var(--ink)', border: 0, color: 'var(--bg)', cursor: 'pointer', whiteSpace: 'nowrap' }}>ASK</button>
       </div>
-      <div aria-live="polite">
+      <div aria-live="polite" className="answer-slot">
         {answer && (
           <div key={answer.line + answer.quip} className="answer reveal-in" style={{ borderTop: '1.5px solid var(--ink)', padding: '14px 16px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <span className="label">ARCHIVIST · {answer.heard}</span>

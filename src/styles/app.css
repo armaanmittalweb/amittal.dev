@@ -164,10 +164,22 @@ html[data-vt='glitch']::view-transition-new(root) { animation: 160ms cubic-bezie
 @keyframes rise { from { opacity: 0; transform: translateY(14px) } }
 .reveal-in { animation: reveal-in .24s ease-out backwards }
 @keyframes reveal-in { from { opacity: 0; transform: translateY(-4px) } }
-/* The Core's title row. When the search sits beside the title, a long answer scrolls inside
-   the box instead of stretching the row and leaving a gap under the title. */
-.core-top { container-type: inline-size }
-@container (min-width: 840px) { .core-top .answer { max-height: min(62vh, 560px); overflow-y: auto; overscroll-behavior: contain } }
+/* The Core. Narrow, everything stacks: title, search, brief, cabinet. Wide, the search sits
+   beside the title; once an answer has results (data-split) the cabinet moves up beside it
+   and the answer fills that height, scrolling inside the box, so no blank column is left. */
+.core-wrap { container-type: inline-size }
+.core-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 34px 40px; grid-template-areas: "head" "search" "brief" "cab" }
+.cg-head { grid-area: head } .cg-search { grid-area: search } .cg-brief { grid-area: brief } .cg-cab { grid-area: cab }
+@container (min-width: 840px) {
+  .core-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); grid-template-areas: "head search" "brief brief" "cab cab"; align-items: start }
+  .cg-search .answer { max-height: min(62vh, 560px); overflow-y: auto; overscroll-behavior: contain }
+  .core-grid[data-split] { grid-template-areas: "head search" "cab search" "brief brief" }
+  /* Sized by the column beside it, not by its own content. */
+  .core-grid[data-split] .cg-search { align-self: stretch; contain: size; display: flex; flex-direction: column }
+  .core-grid[data-split] .cg-search > form { flex: 1; min-height: 0 }
+  .core-grid[data-split] .cg-search .answer-slot { flex: 1; min-height: 0; display: flex; flex-direction: column }
+  .core-grid[data-split] .cg-search .answer { flex: 1; min-height: 0; max-height: none }
+}
 .bar-grow { transform-origin: left; animation: bar-grow .9s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: calc(.3s + var(--i, 0) * 90ms) }
 @keyframes bar-grow { from { transform: scaleX(0) } }
 /* The toast is pinned at a slight angle, so its keyframes keep the angle. */
