@@ -11,7 +11,13 @@ const lerp=(a,b,k)=>a+(b-a)*k;
 const PAL={
   paper:{ink:'#1c1a15',muted:'#5a5447',line:'#c6baa0',face:'#e6dcc3',body:0x8a7f68,block:0xe6dcc3},
   draft:{ink:'#eef0ee',muted:'#a9b5c9',line:'#3d5076',face:'#22324f',body:0x2b3a5a,block:0x2a3c60},
-  film:{ink:'#d3e0c6',muted:'#8c9a84',line:'#3a473b',face:'#1a2019',body:0x1c231c,block:0x1f2a20}
+  film:{ink:'#d3e0c6',muted:'#8c9a84',line:'#3a473b',face:'#1a2019',body:0x1c231c,block:0x1f2a20},
+  bloom:{ink:'#4a1426',muted:'#8a4a5d',line:'#ebbccb',face:'#fbe3ea',body:0xb05a74,block:0xf6d6df}
+};
+// The film reel's own colours: base, frame, hovered frame, open frame, outlines, text.
+const REEL={
+  film:{base:'#1e241d',frame:'#2a3229',hover:'#2f382d',on:'#34402f',edge:'#6f7d68',edgeHover:'#a9b89f',text:'#e4eed8'},
+  bloom:{base:'#4a1426',frame:'#5c1d33',hover:'#652137',on:'#70263f',edge:'#b0687f',edgeHover:'#e3a3b6',text:'#fbe3ea'}
 };
 const FH='"Big Shoulders Stencil Display", sans-serif', FM='"Martian Mono", monospace';
 const emit=d=>window.dispatchEvent(new CustomEvent('archive3d',{detail:d}));
@@ -86,7 +92,10 @@ export class Archive3D extends HTMLElement{
   get data(){ try{ return JSON.parse(this.getAttribute('data')||'{}'); }catch{ return {}; } }
   set data(v){ this.setAttribute('data',typeof v==='string'?v:JSON.stringify(v)); }
   get pal(){ return PAL[this.getAttribute('mat')]||PAL.paper; }
-  get accent(){ const h=(+this.getAttribute('hue')||40)/360; return new this.T.Color().setHSL(h,.62,this.getAttribute('mat')==='paper'?.42:.64); }
+  get bloom(){ return this.getAttribute('mat')==='bloom'; }
+  /** Light materials take a deeper accent and a softer shadow. */
+  get light(){ const m=this.getAttribute('mat'); return m==='paper'||m==='bloom'; }
+  get accent(){ const h=(+this.getAttribute('hue')||40)/360; return new this.T.Color().setHSL(h,.62,this.light?.42:.64); }
 
   /** Adds a listener to the shared canvas that goes when this view does. */
   listen(el,type,fn){ el.addEventListener(type,fn); (this.offs||(this.offs=[])).push(()=>el.removeEventListener(type,fn)); }
@@ -204,7 +213,7 @@ export class Archive3D extends HTMLElement{
     const f=this['frame_'+this.mode]; if(f) f.call(this,t,dt);
   }
   ground(y,size){
-    const T=this.T; const g=new T.Mesh(new T.PlaneGeometry(size||16,size||16),new T.ShadowMaterial({opacity:this.getAttribute('mat')==='paper'?.16:.4}));
+    const T=this.T; const g=new T.Mesh(new T.PlaneGeometry(size||16,size||16),new T.ShadowMaterial({opacity:this.light?.16:.4}));
     g.rotation.x=-Math.PI/2; g.position.y=y; g.receiveShadow=true; this.root.add(g);
   }
   tex(w,h,draw){ const T=this.T; const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h); const t=new T.CanvasTexture(c); t.colorSpace=T.SRGBColorSpace; t.anisotropy=8; return t; }
@@ -254,7 +263,7 @@ export class Archive3D extends HTMLElement{
     brass:new T.MeshStandardMaterial({color:0xc29d56,metalness:.9,roughness:.28}) }; }
 
   /* ---------- CABINET (Core) ---------- */
-  drawerTex(it){ const p=PAL[it.mat]||PAL.paper; return this.tex(1024,256,(g,w,h)=>{
+  drawerTex(it){ const p=this.bloom?PAL.bloom:(PAL[it.mat]||PAL.paper); return this.tex(1024,256,(g,w,h)=>{
     g.fillStyle=p.face; g.fillRect(0,0,w,h); g.fillStyle='rgba(0,0,0,.2)'; g.fillRect(0,h-8,w,8);
     g.fillStyle='#a8874a'; g.fillRect(w/2-300,18,600,142); g.fillStyle='#f4efe2'; g.fillRect(w/2-290,27,580,124);
     g.fillStyle='#1c1a15'; g.textAlign='center'; g.textBaseline='middle';
@@ -277,7 +286,7 @@ export class Archive3D extends HTMLElement{
     const folderA=new T.MeshStandardMaterial({color:0xd9c9a2,roughness:.95}), folderB=new T.MeshStandardMaterial({color:0xc9b684,roughness:.95});
     this.drawers=items.map((it,i)=>{
       const g=new T.Group(); g.userData.pick=i; g.position.set(0,bodyH-.07-H*(i+.5),0);
-      const side=new T.MeshStandardMaterial({color:(PAL[it.mat]||PAL.paper).body,metalness:.3,roughness:.6});
+      const side=new T.MeshStandardMaterial({color:(this.bloom?PAL.bloom:(PAL[it.mat]||PAL.paper)).body,metalness:.3,roughness:.6});
       const face=new T.MeshStandardMaterial({map:this.drawerTex(it),roughness:.75,metalness:.05});
       const front=new T.Mesh(new T.BoxGeometry(W-.02,H-.035,.07),[side,side,side,side,face,side]); front.castShadow=true; front.receiveShadow=true; g.add(front);
       const tl=D-.14;
@@ -489,14 +498,14 @@ export class Archive3D extends HTMLElement{
 
   /* ---------- REEL (Research) ---------- */
   drawReel(){
-    const c=this.reelCanvas, g=c.getContext('2d'), w=c.width, h=c.height, frames=this.reelFrames, count=this.reelCount, fw=w/count, acc=this.accent.getStyle();
-    g.globalCompositeOperation='source-over'; g.clearRect(0,0,w,h); g.fillStyle='#1e241d'; g.fillRect(0,0,w,h);
+    const c=this.reelCanvas, g=c.getContext('2d'), w=c.width, h=c.height, frames=this.reelFrames, count=this.reelCount, fw=w/count, acc=this.accent.getStyle(), q=REEL[this.bloom?'bloom':'film'];
+    g.globalCompositeOperation='source-over'; g.clearRect(0,0,w,h); g.fillStyle=q.base; g.fillRect(0,0,w,h);
     for(let i=0;i<count;i++){ const fi=i%frames.length, [id,sub]=frames[fi].split('|'), x=i*fw, on=fi===this.reelSel, hv=fi===this.reelHov;
-      g.fillStyle=on?'#34402f':(hv?'#2f382d':'#2a3229'); g.fillRect(x+14,56,fw-28,h-112);
-      g.strokeStyle=on?acc:(hv?'#a9b89f':'#6f7d68'); g.lineWidth=on?7:(hv?4:2); g.strokeRect(x+14,56,fw-28,h-112);
-      g.fillStyle=on?acc:'#e4eed8'; g.textAlign='left'; g.textBaseline='middle'; g.font='800 66px '+FH; g.fillText(id||'',x+36,104);
+      g.fillStyle=on?q.on:(hv?q.hover:q.frame); g.fillRect(x+14,56,fw-28,h-112);
+      g.strokeStyle=on?acc:(hv?q.edgeHover:q.edge); g.lineWidth=on?7:(hv?4:2); g.strokeRect(x+14,56,fw-28,h-112);
+      g.fillStyle=on?acc:q.text; g.textAlign='left'; g.textBaseline='middle'; g.font='800 66px '+FH; g.fillText(id||'',x+36,104);
       let fs=28; g.font='500 '+fs+'px '+FM; while(fs>18&&g.measureText(sub||'').width>fw-72){ fs-=2; g.font='500 '+fs+'px '+FM; }
-      g.fillStyle='#e4eed8'; g.fillText(sub||'',x+36,162);
+      g.fillStyle=q.text; g.fillText(sub||'',x+36,162);
       if(on){ g.font='600 22px '+FM; g.fillStyle=acc; g.textAlign='right'; g.fillText('OPEN',x+fw-36,104); } }
     g.globalCompositeOperation='destination-out'; for(let x=8;x<w;x+=38){ g.fillRect(x,14,20,26); g.fillRect(x,h-40,20,26); } g.globalCompositeOperation='source-over';
   }

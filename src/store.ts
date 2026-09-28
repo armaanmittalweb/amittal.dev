@@ -8,6 +8,7 @@ import { cancelAll, primeAudio, setDroneMaterial, setSoundEnabled, startDrone, s
 import type { MotionPref } from './lib/motion'
 import { newSeed } from './lib/seed'
 import { sfx } from './lib/sfx'
+import { openKeepsake, type Keepsake } from './lib/keepsake'
 import { transition } from './lib/transition'
 
 export type Screen = 'entrance' | 'objective' | 'core' | 'fast'
@@ -29,6 +30,8 @@ interface Persisted {
   found: boolean
   eggs: Record<string, true>
   negative: boolean
+  /** The hidden theme: opened by the words sealed in lib/keepsake.ts. */
+  bloom: boolean
   motion: MotionPref
   /** The master switch for every sound, on by default. Sound only ever follows something the visitor did. */
   sound: boolean
@@ -67,7 +70,8 @@ interface Actions {
   goFast(): void
   leaveFast(): void
   egg(id: string): void
-  note(t: Toast): void
+  /** Shows a toast for `ms`; 0 keeps it until dismissed. */
+  note(t: Toast, ms?: number): void
   dismissToast(): void
   lockdown(fromLogo: boolean): void
   logoClick(): void
@@ -88,6 +92,7 @@ interface Actions {
   toggleDrone(): void
   toggleMenu(): void
   toggleNegative(): void
+  toggleBloom(note: Keepsake): void
   setMotion(m: MotionPref): void
   setTraceList(on: boolean): void
 }
@@ -138,10 +143,27 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     glitchSound = null
   }
 
+  /** The keyword search over the projects, and the canned answers. */
+  const search = (raw: string) => {
+    const hit = SECRETS.find(x => x.re.test(raw))
+    if (hit) { set({ secret: hit, results: null }); get().egg(hit.egg || 'query'); return }
+    set({ secret: null })
+    // Filler like "show me projects in" is dropped; a request with nothing left finds nothing.
+    const words = tokens(raw).filter(w => w.length > 1 && !STOP_WORDS.has(w))
+    const results = words.length === 0 ? [] : PROJECTS.map(p => {
+      const matched = p.tags.filter(t => words.some(w => wordMatches(w, t)))
+      const nameHit = words.some(w => wordMatches(w, p.name) || wordMatches(w, p.l1))
+      return { id: p.id, matched, score: matched.length * 2 + (nameHit ? 1 : 0) }
+    }).filter(r => r.score > 0).sort((a, b) => b.score - a.score).map(({ id, matched }) => ({ id, matched }))
+    set({ results })
+    // A keyword search is not evidence of interest in AI, so it counts toward nothing.
+    get().visit('query')
+  }
+
   return {
   screen: 'entrance', seed: null, revoked: null, objective: 'hiring', view: 'hub',
   visited: {}, interest: {}, projectId: null, depth: 1, capId: null, log: 0,
-  found: false, eggs: {}, negative: false, motion: 'system', fastFrom: null, sound: true,
+  found: false, eggs: {}, negative: false, bloom: false, motion: 'system', fastFrom: null, sound: true,
 
   removed: null, nodeId: null, openWhy: null, openFail: null, openRes: null, layer: 0,
   cabHover: null, menuOpen: false, toast: null, drone: false,
@@ -233,10 +255,10 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     toastTimer = setTimeout(() => set({ toast: null }), 5200)
   },
 
-  note(t) {
+  note(t, ms = 2600) {
     set({ toast: t })
     clearTimeout(toastTimer)
-    toastTimer = setTimeout(() => set({ toast: null }), 2600)
+    if (ms > 0) toastTimer = setTimeout(() => set({ toast: null }), ms)
   },
 
   dismissToast() {
@@ -317,19 +339,16 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
   runQuery() {
     const raw = get().query.trim().toLowerCase()
     if (!raw) return set({ secret: null, results: null })
-    const hit = SECRETS.find(x => x.re.test(raw))
-    if (hit) { set({ secret: hit, results: null }); get().egg(hit.egg || 'query'); return }
-    set({ secret: null })
-    // Filler like "show me projects in" is dropped; a request with nothing left finds nothing.
-    const words = tokens(raw).filter(w => w.length > 1 && !STOP_WORDS.has(w))
-    const results = words.length === 0 ? [] : PROJECTS.map(p => {
-      const matched = p.tags.filter(t => words.some(w => wordMatches(w, t)))
-      const nameHit = words.some(w => wordMatches(w, p.name) || wordMatches(w, p.l1))
-      return { id: p.id, matched, score: matched.length * 2 + (nameHit ? 1 : 0) }
-    }).filter(r => r.score > 0).sort((a, b) => b.score - a.score).map(({ id, matched }) => ({ id, matched }))
-    set({ results })
-    // A keyword search is not evidence of interest in AI, so it counts toward nothing.
-    get().visit('query')
+    // A short request is first tried as the key to the keepsake (lib/keepsake.ts); it takes
+    // a moment to check, and the search waits so nothing flashes up in between.
+    if (raw.length <= 12) {
+      openKeepsake(raw).then(note => {
+        if (get().query.trim().toLowerCase() !== raw) return // the visitor has moved on
+        if (note) { set({ query: '', secret: null, results: null }); get().toggleBloom(note) } else search(raw)
+      })
+      return
+    }
+    search(raw)
   },
 
   findMisfiled() { set({ found: true }); get().visit('misfiled', 'interface'); get().egg('misfiled') },
@@ -348,6 +367,13 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
   },
   toggleMenu() { set(s => ({ menuOpen: !s.menuOpen })) },
   toggleNegative() { set(s => ({ negative: !s.negative })) },
+  // Its note stays until it is put away, so it can be read at whatever pace it deserves.
+  toggleBloom(note) {
+    const on = !get().bloom
+    transition(() => set({ bloom: on }))
+    sfx.stamp()
+    get().note({ kicker: 'FOR YOU', code: '♥', ...(on ? note.on : note.off) }, on ? 0 : 5200)
+  },
   setMotion(m) { set({ motion: m }) },
   setTraceList(on) { set({ traceList: on }) },
   }
@@ -357,7 +383,7 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
   partialize: (s): Persisted => ({
     screen: s.screen, seed: s.seed, revoked: s.revoked, objective: s.objective, view: s.view,
     visited: s.visited, interest: s.interest, projectId: s.projectId, depth: s.depth, capId: s.capId,
-    log: s.log, found: s.found, eggs: s.eggs, negative: s.negative, motion: s.motion, fastFrom: s.fastFrom, sound: s.sound,
+    log: s.log, found: s.found, eggs: s.eggs, negative: s.negative, bloom: s.bloom, motion: s.motion, fastFrom: s.fastFrom, sound: s.sound,
   }),
 }))
 

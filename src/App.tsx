@@ -3,6 +3,7 @@ import { Core } from './components/Core'
 import { Entrance } from './components/Entrance'
 import { FastAccess } from './components/FastAccess'
 import { Objective } from './components/Objective'
+import { Hearts } from './components/Hearts'
 import { Toast } from './components/Toast'
 import { MATERIAL } from './data/content'
 import { useGlobalListeners, useMotionAttribute, useReducedMotion, useTilt } from './hooks'
@@ -15,6 +16,7 @@ export default function App() {
   const view = useArchive(s => s.view)
   const seed = useArchive(s => s.seed)
   const negative = useArchive(s => s.negative)
+  const bloom = useArchive(s => s.bloom)
   const reduced = useReducedMotion()
 
   useMotionAttribute(reduced)
@@ -22,7 +24,8 @@ export default function App() {
   useTilt(!reduced)
 
   const hue = derive(seed || '0000000000000000').hue
-  const material = screen === 'core' ? MATERIAL[view] : screen === 'entrance' ? 'vault' : 'paper'
+  // Bloom recolours every screen the visitor has unlocked; the vault stays the vault.
+  const material = bloom && screen !== 'entrance' ? 'bloom' : screen === 'core' ? MATERIAL[view] : screen === 'entrance' ? 'vault' : 'paper'
   const filter = negative ? 'invert(1) hue-rotate(180deg)' : ''
 
   // The theme lives on <html>, whose background is --bg: during a page transition the old
@@ -46,6 +49,7 @@ export default function App() {
         {screen === 'core' && <Core />}
         {screen === 'fast' && <FastAccess />}
       </div>
+      {bloom && screen !== 'entrance' && <Hearts />}
       <Toast />
     </>
   )

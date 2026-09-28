@@ -176,6 +176,14 @@ html[data-vt='glitch']::view-transition-new(root) { animation: 160ms cubic-bezie
 @keyframes menu-in { from { opacity: 0; transform: translateY(-10px) } }
 @keyframes menu-out { to { opacity: 0; transform: translateY(-6px) } }
 
+/* Bloom mode: hearts drift up the screen, swaying. Under reduced motion they simply rest where they are. */
+.heart { position: fixed; top: calc(var(--y) * 1vh); pointer-events: none; z-index: 45; color: var(--accent); line-height: 1; will-change: transform;
+  animation: heart-rise var(--dur) linear var(--delay) infinite, heart-sway calc(var(--dur) / 3) ease-in-out var(--delay) infinite alternate }
+.heart::before { content: '\2665' }
+@keyframes heart-rise { from { translate: 0 calc((110 - var(--y)) * 1vh); opacity: 0 } 12% { opacity: var(--o) } 85% { opacity: var(--o) } to { translate: 0 calc((-30 - var(--y)) * 1vh); opacity: 0 } }
+@keyframes heart-sway { from { transform: translateX(-14px) rotate(-10deg) } to { transform: translateX(14px) rotate(10deg) } }
+[data-motion='reduced'] .heart { opacity: var(--o) }
+
 /* Reduced motion: every transition and animation completes instantly. */
 [data-motion='reduced'] *,
 [data-motion='reduced'] *::before,

@@ -1,5 +1,6 @@
 import { useEffect, type CSSProperties } from 'react'
 import { markSceneBroken, registerScenes, useSceneAvailable } from '../lib/scene'
+import { useArchive } from '../store'
 
 /** Registers the custom elements on first use. Failures inside an element reach lib/scene through a window listener. */
 function useScene() {
@@ -21,7 +22,10 @@ export type ArchiveMode = 'cabinet' | 'graph' | 'pipeline' | 'seed' | 'exploded'
  * useSceneAvailable() to show their text version instead.
  */
 export function Archive3D({ mode, mat, hue, data, autoHeight }: { mode: ArchiveMode; mat: string; hue: number; data: unknown; autoHeight?: boolean }) {
+  const bloom = useArchive(s => s.bloom)
   if (useScene()) return null
+  // Bloom repaints every 3D view in its own palette and a rose accent.
+  if (bloom) { mat = 'bloom'; hue = 345 }
   // autoHeight: the element sets its own height from its layout (the pipeline does, by rows).
   return <archive-3d mode={mode} mat={mat} hue={String(hue)} data={JSON.stringify(data)} aria-hidden="true" style={autoHeight ? grow : fill} />
 }

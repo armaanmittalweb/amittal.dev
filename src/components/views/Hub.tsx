@@ -72,7 +72,7 @@ export function Hub() {
               <span>ARCHIVE INDEX · REQUEST FORM</span><span style={{ color: 'var(--muted)' }}>KEYWORD SEARCH</span>
             </div>
             <div style={{ display: 'flex' }}>
-              <input value={query} onChange={e => setQuery(e.target.value)} aria-label="Search the archive" placeholder="Show me your projects involving NLP"
+              <input value={query} onChange={e => setQuery(e.target.value)} autoComplete="off" aria-label="Search the archive" placeholder="Show me your projects involving NLP"
                 style={{ flex: 1, minWidth: 0, background: 'transparent', border: 0, color: 'var(--ink)', padding: '18px 16px', fontFamily: "'Newsreader',serif", fontStyle: 'italic', fontSize: 22, outline: 'none' }} />
               <button type="submit" className="stencil" style={{ fontWeight: 700, fontSize: 20, letterSpacing: '.12em', padding: '0 26px', background: 'var(--ink)', border: 0, color: 'var(--bg)', cursor: 'pointer', whiteSpace: 'nowrap' }}>FILE REQUEST</button>
             </div>
