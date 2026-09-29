@@ -65,7 +65,7 @@ const terms = (s: string) => words(s).map(stem)
 // What people type, and what the archive calls it. Expansions count for a little less than the word itself.
 const SYNONYMS: Record<string, string> = {
   ml: 'ai model training llm', ai: 'llm rag agent nlp model machine learning', artificial: 'ai', intelligence: 'ai',
-  llm: 'language model gemini qwen claude openai', gpt: 'llm openai', chatgpt: 'llm openai', genai: 'llm rag ai', gen: 'llm',
+  llm: 'language model gemma qwen claude openai', gpt: 'llm openai', chatgpt: 'llm openai', genai: 'llm rag ai', gen: 'llm',
   agent: 'agents multi-agent tool-calling mcp orchestration', agentic: 'agent mcp tool', bot: 'agent llm', chatbot: 'agent llm rag',
   rag: 'retrieval vector embeddings', retrieval: 'rag', vector: 'rag embeddings', semantic: 'embeddings rag', embedding: 'rag vector',
   nlp: 'language multilingual text', language: 'nlp multilingual', translation: 'nllb multilingual', multilingual: 'nlp translation',
@@ -80,7 +80,9 @@ const SYNONYMS: Record<string, string> = {
   concurrency: 'lockfree thread', thread: 'concurrency', lockfree: 'concurrency ring buffer',
   chess: 'openingos opening repertoire', farm: 'farmsaathi farming crop', farming: 'farmsaathi agriculture', agriculture: 'farmsaathi farming', crop: 'farmsaathi', plant: 'leaf disease farmsaathi',
   timetable: 'edusched schedule', schedule: 'edusched timetable', college: 'education thapar', university: 'education thapar', school: 'education', degree: 'education', study: 'education',
-  transcript: 'fieldnotes', citation: 'fieldnotes cite', cite: 'citation', interview: 'expert-call transcript',
+  stress: 'safespace signal hrv', anxiety: 'stress safespace', health: 'safespace stress', wellness: 'safespace stress', wellbeing: 'safespace stress',
+  wearable: 'safespace sensor hrv', sensor: 'signal safespace', biosignal: 'signal hrv eeg', hrv: 'heart rate variability safespace', heart: 'hrv',
+  xgboost: 'machine learning model', explainable: 'explainability', xai: 'explainability',
   cloud: 'infrastructure docker kubernetes', devops: 'infrastructure ci cd docker', docker: 'infrastructure', kubernetes: 'infrastructure', deploy: 'infrastructure',
   job: 'experience role', career: 'experience role', experience: 'role', intern: 'internship', internship: 'intern', company: 'engagely samsung',
   paper: 'publication research', publication: 'paper research', published: 'publication', thesis: 'research', science: 'research',

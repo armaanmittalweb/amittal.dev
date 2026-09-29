@@ -55,7 +55,7 @@ export function Brief() {
   )
 
   if (o.id === 'engineering') {
-    const picks = ['latentbook', 'fieldnotes', 'farmsaathi'].flatMap(id => PROJECTS.filter(p => p.id === id))
+    const picks = ['latentbook', 'farmsaathi', 'openingos'].flatMap(id => PROJECTS.filter(p => p.id === id))
     return (
       <section aria-label="Where to start" className="rise" style={box}>
         <Head kicker="FOR YOU · WHERE TO START">Every project opens at its decisions and incident logs. Start with the one that interests you most, or break a pipeline.</Head>
