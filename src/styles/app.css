@@ -212,3 +212,16 @@ html[data-vt='glitch']::view-transition-new(root) { animation: 160ms cubic-bezie
 
 /* On narrow canvases the exploded view shows each layer's name only; the card beside it has the rest. */
 archive-3d[mode='exploded'].a3d-compact .a3d-tag span { display: none }
+
+/* The teletype prints on continuous-feed paper: a row of sprocket holes down each edge. */
+.tty { padding-inline: 34px }
+.tty::before, .tty::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 22px; pointer-events: none;
+  background-image: radial-gradient(circle, var(--bg) 0 4px, transparent 4.5px); background-size: 22px 22px; background-position: 0 5px;
+}
+.tty::before { left: 0; border-right: 1px dashed var(--line) }
+.tty::after { right: 0; border-left: 1px dashed var(--line) }
+@media (max-width: 480px) {
+  .tty { padding-inline: 26px }
+  .tty::before, .tty::after { width: 16px; background-size: 16px 20px }
+}

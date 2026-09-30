@@ -270,7 +270,7 @@ export const EDGES: [string, string][] = [
 export const TARGETS = [
   'identity', 'capabilities', 'resume', 'trace', 'lab', 'research',
   ...PROJECTS.map(p => 'p:' + p.id),
-  'break', 'why', 'fail', 'depth3', 'query', 'inspect',
+  'break', 'why', 'fail', 'depth3', 'query', 'inspect', 'terminal',
 ]
 
 // What the visitor came for. It shapes the visit: what the Core leads with, how deep a
@@ -326,4 +326,5 @@ export const EGGS: Egg[] = [
   { id: 'tab', code: 'EGG-10', title: 'YOU CAME BACK', body: 'The tab title noticed you left.', hint: 'Leave, then return.' },
   { id: 'console', code: 'EGG-11', title: 'SOURCE DRAWER', body: 'You knocked from the developer console.', hint: 'Engineers check the console.' },
   { id: 'lockdown', code: 'EGG-12', title: 'LOCKDOWN', body: 'Ten pulls on the handle. Your key was revoked and the vault resealed.', hint: 'Drawer 99 is not the last thing the handle does.' },
+  { id: 'fireproof', code: 'EGG-13', title: 'FIREPROOF', body: 'You tried to delete everything from the teletype. Paper archives do not burn that easily.', hint: 'The Lab has a teletype. Try the most dangerous command you know.' },
 ]

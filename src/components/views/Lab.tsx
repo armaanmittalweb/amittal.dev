@@ -1,16 +1,21 @@
 import { PROJECTS } from '../../data/content'
 import { derive } from '../../lib/seed'
 import { useArchive } from '../../store'
-import { DrawerHead } from '../ui'
+import { DrawerHead, OutlineButton } from '../ui'
 
 export function Lab() {
   const seed = useArchive(s => s.seed) || '0000000000000000'
   const visited = useArchive(s => s.visited)
   const openProject = useArchive(s => s.openProject)
+  const toggleTty = useArchive(s => s.toggleTty)
   const d = derive(seed)
   return (
     <div data-screen-label="08 Lab" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <DrawerHead kicker={`DRAWER 05 · THE LAB · ORDER FROM SEED ${seed}`} title="THE LAB" lead="Working drawings of each project. Open one, then take it apart." leadStyle={{ maxWidth: 'none' }} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 16px' }}>
+        <OutlineButton onClick={() => toggleTty(true)}>OPEN THE TELETYPE · `</OutlineButton>
+        <span style={{ fontSize: 17, fontStyle: 'italic', color: 'var(--muted)' }}>Or explore every drawing from a shell: cd, cat, pipeline, pull.</span>
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1.5px solid var(--ink)' }}>
         {d.order.map((id, i) => {
           const p = PROJECTS.find(x => x.id === id)!, seen = !!visited['p:' + id]

@@ -43,6 +43,7 @@ export function Report() {
     ['PIPELINES BROKEN', visited.break ? 'YES' : 'NO'],
     ['DECISIONS OPENED', visited.why ? 'YES' : 'NO'],
     ['FAILURES READ', visited.fail ? 'YES' : 'NO'],
+    ['TELETYPE', visited.terminal ? 'USED' : 'NOT USED'],
     ['MISFILED RECORD', found ? 'FOUND' : 'NOT FOUND'],
   ]
   const cta = { fontWeight: 700, fontSize: 20, letterSpacing: '.12em', padding: '10px 22px' } as const

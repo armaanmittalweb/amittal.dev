@@ -381,6 +381,15 @@ export function shutter(): Part[] {
   })]
 }
 
+/** The teletype: one typebar striking the platen as a line prints. Quiet, since lines come in runs. */
+export function typebar(): Part[] {
+  return [part('typebar', 0, .06, (o, t) => {
+    burst(o, t, 'highpass', 3200, .7, .045, .0018, o.dest)
+    modes(o, t, [{ f: 1850, a: 1, tau: .006 }, { f: 4200, a: .35, tau: .004 }], .035, o.dest)
+    thump(o, t, 210, 160, .01, .03, .01, o.dest)
+  })]
+}
+
 /** An easter-egg toast: a rubber stamp coming down on paper. */
 export function stamp(): Part[] {
   return [part('stamp', 0, .25, (o, t) => {

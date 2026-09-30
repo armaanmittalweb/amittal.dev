@@ -8,6 +8,7 @@ import { MisfiledNote } from './ui'
 import { MotionToggle } from './MotionToggle'
 import { DroneToggle, SoundToggle } from './SoundToggle'
 import { SceneNotice } from './Scene'
+import { TeletypeHost } from './TeletypeHost'
 import { Capabilities } from './views/Capabilities'
 import { Colophon } from './views/Colophon'
 import { Hub } from './views/Hub'
@@ -238,6 +239,7 @@ export function Core() {
           </div>
         </main>
       </div>
+      <TeletypeHost />
     </div>
   )
 }

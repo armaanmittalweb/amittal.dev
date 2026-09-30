@@ -26,6 +26,8 @@ export const sfx = {
   glitch: (): Handle => play('glitch', S.glitchStatic()),
   shutter: () => now('shutter', S.shutter()),
   stamp: () => now('stamp', S.stamp()),
+  /** One printed teletype line. */
+  typebar: () => now('typebar', S.typebar()),
   rattle: () => now('rattle', S.rattle()),
   slam: () => now('slam', S.slam()),
 }

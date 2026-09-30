@@ -58,6 +58,10 @@ interface Transient {
   answer: Answer | null
   logo: number
   traceList: boolean
+  /** The Lab's teletype panel, opened with ` or from the Lab. */
+  tty: boolean
+  /** The drawing the teletype is in (its working directory), or null for /lab. */
+  ttyCwd: string | null
 }
 
 interface Actions {
@@ -99,6 +103,8 @@ interface Actions {
   toggleBloom(note: Keepsake): void
   setMotion(m: MotionPref): void
   setTraceList(on: boolean): void
+  toggleTty(on?: boolean): void
+  setTtyCwd(id: string | null): void
 }
 
 export type ArchiveState = Persisted & Transient & Actions
@@ -158,7 +164,7 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
 
   removed: null, nodeId: null, openWhy: null, openFail: null, openRes: null, layer: 0,
   cabHover: null, menuOpen: false, toast: null, drone: false,
-  query: '', answer: null, rechoosing: false, logo: 0, traceList: false,
+  query: '', answer: null, rechoosing: false, logo: 0, traceList: false, tty: false, ttyCwd: null,
 
   visit(key, cat, weight = 1) {
     set(s => {
@@ -225,7 +231,7 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
     cancelAll()
     const from = get().screen
     transition(() => {
-      set({ screen: 'fast', fastFrom: from === 'fast' ? get().fastFrom : from, menuOpen: false, drone: false })
+      set({ screen: 'fast', fastFrom: from === 'fast' ? get().fastFrom : from, menuOpen: false, drone: false, tty: false })
       top()
     })
   },
@@ -269,7 +275,7 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
       set({
         seed: null, revoked: s.seed || s.revoked || null, logo: 0, visited: {}, interest: {}, log: 0,
         screen: 'entrance', view: 'hub', answer: null, query: '', found: false, drone: false,
-        menuOpen: false, nodeId: null, capId: null, layer: 0, cabHover: null,
+        menuOpen: false, nodeId: null, capId: null, layer: 0, cabHover: null, tty: false,
       })
       top()
     })
@@ -371,6 +377,12 @@ export const useArchive = create<ArchiveState>()(persist((set, get) => {
   },
   setMotion(m) { set({ motion: m }) },
   setTraceList(on) { set({ traceList: on }) },
+  // Opening on a project page puts the teletype in that drawing.
+  toggleTty(on) {
+    const s = get(), open = on ?? !s.tty
+    set({ tty: open, ...(open && !s.tty && s.view === 'project' && s.projectId ? { ttyCwd: s.projectId } : {}) })
+  },
+  setTtyCwd(id) { set({ ttyCwd: id }) },
   }
 }, {
   name: 'amittal-archive-v5',

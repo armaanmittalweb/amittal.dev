@@ -1,23 +1,13 @@
 import { CAT_LABEL, MATERIAL, PROJECTS, type Project as P } from '../../data/content'
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { reveal, useIsDesk } from '../../hooks'
+import { pipelineStatus } from '../../lib/pipeline'
 import { derive } from '../../lib/seed'
 import { useArchive } from '../../store'
 import { useSceneAvailable } from '../../lib/scene'
 import { Archive3D } from '../Scene'
 
 const DEPTHS = [['L1 · WHAT', '10 SECONDS'], ['L2 · HOW', '60 SECONDS'], ['L3 · WHY', '5 MINUTES']] as const
-
-function pipelineStatus(proj: P, removed: number | null) {
-  const Pl = proj.pipeline
-  if (removed === null) return { ok: true, head: 'PIPELINE VALID', lines: [`OUTPUT  ${Pl[Pl.length - 1]}`] }
-  const i = removed
-  const lines = proj.breaks[i]
-    ?? (i === Pl.length - 1
-      ? ['FINAL STAGE REMOVED', `Stages run, but nothing becomes ${Pl[i].toLowerCase()}`, 'OUTPUT EMPTY']
-      : [`${Pl[i + 1].toUpperCase()} EXPECTS  output of ${Pl[i]}`, `RECEIVED  ${i === 0 ? 'nothing' : 'output of ' + Pl[i - 1]}`, 'Mismatch detected', 'EXECUTION ABORTED'])
-  return { ok: false, head: 'PIPELINE INVALID', lines }
-}
 
 /** The pipeline as buttons: the keyboard and screen-reader way to pull a stage. */
 function StageControls({ proj, removed, toggle }: { proj: P; removed: number | null; toggle: (i: number) => void }) {
@@ -171,7 +161,10 @@ export function Project() {
         </div>
       )}
       <nav aria-label="Projects" className="mono" style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', borderTop: '1px solid var(--line)', paddingTop: 18 }}>
-        <button type="button" onClick={() => go('lab')} style={{ fontSize: 10, letterSpacing: '.12em', padding: '12px 16px', background: 'transparent', border: '1px solid var(--line)', color: 'var(--ink)', cursor: 'pointer' }}>← THE LAB</button>
+        <span style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => go('lab')} style={{ fontSize: 10, letterSpacing: '.12em', padding: '12px 16px', background: 'transparent', border: '1px solid var(--line)', color: 'var(--ink)', cursor: 'pointer' }}>← THE LAB</button>
+          <button type="button" onClick={() => useArchive.getState().toggleTty(true)} style={{ fontSize: 10, letterSpacing: '.12em', padding: '12px 16px', background: 'transparent', border: '1px solid var(--line)', color: 'var(--ink)', cursor: 'pointer' }}>TELETYPE · `</button>
+        </span>
         {nextProj.id !== proj.id && (
           <button type="button" onClick={() => openProject(nextProj.id)} style={{ fontSize: 10, letterSpacing: '.12em', padding: '12px 16px', background: 'transparent', border: '1px solid var(--ink)', color: 'var(--ink)', cursor: 'pointer' }}>
             <span style={{ color: 'var(--muted)' }}>NEXT DRAWING · </span>{nextProj.name.toUpperCase()} →
