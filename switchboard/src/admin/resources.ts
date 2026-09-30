@@ -144,8 +144,10 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
         const acct = body.data.viewer.accounts[0]
         const byScript = new Map<string, { requests: number; errors: number }>()
         for (const w of acct?.workers ?? []) {
-          const cur = byScript.get(w.dimensions.scriptName) ?? { requests: 0, errors: 0 }
-          byScript.set(w.dimensions.scriptName, { requests: cur.requests + w.sum.requests, errors: cur.errors + w.sum.errors })
+          // Cloudflare reports some requests without a script ("__unknown__"); they still count toward the daily limit.
+          const name = w.dimensions.scriptName === '__unknown__' ? 'unattributed' : w.dimensions.scriptName
+          const cur = byScript.get(name) ?? { requests: 0, errors: 0 }
+          byScript.set(name, { requests: cur.requests + w.sum.requests, errors: cur.errors + w.sum.errors })
         }
         out.workers = [...byScript].map(([script, v]) => ({ script, ...v })).sort((a, b) => b.requests - a.requests)
         const requests = out.workers.reduce((a, w) => a + w.requests, 0)
