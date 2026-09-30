@@ -4,16 +4,16 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-25",
   "observability": { "enabled": true },
-  // Served at api.amittal.dev once the domain is on Cloudflare:
-  // "routes": [{ "pattern": "api.amittal.dev", "custom_domain": true }],
+  // Served at api.amittal.dev (custom domain: Cloudflare creates the DNS record).
+  "routes": [{ "pattern": "api.amittal.dev", "custom_domain": true }],
   "vars": {
     // Only these are checked; the rest are reported as planned. Add an id when its service ships.
     "LIVE": "archive"
   },
   // Create with: npx wrangler d1 create switchboard, then paste its id here and run
   // npx wrangler d1 execute switchboard --remote --file schema.sql
-  "d1_databases": [{ "binding": "DB", "database_name": "switchboard", "database_id": "REPLACE_WITH_D1_ID" }],
-  // Uncomment once the EduSched API Worker (edusched-api) is deployed:
-  // "services": [{ "binding": "EDUSCHED", "service": "edusched-api" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "switchboard", "database_id": "a0add2ce-78e3-4f86-a548-6785d6e388ab" }],
+  // The EduSched API Worker, reached without leaving Cloudflare (health checks and /edusched/*).
+  "services": [{ "binding": "EDUSCHED", "service": "edusched-api" }],
   "triggers": { "crons": ["*/5 * * * *"] }
 }
