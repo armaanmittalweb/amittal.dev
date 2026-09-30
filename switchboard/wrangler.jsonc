@@ -8,7 +8,7 @@
   "routes": [{ "pattern": "api.amittal.dev", "custom_domain": true }],
   "vars": {
     // Only these are checked; the rest are reported as planned. Add an id when its service ships.
-    "LIVE": "archive"
+    "LIVE": "archive,edusched,safespace,openingos"
   },
   // Create with: npx wrangler d1 create switchboard, then paste its id here and run
   // npx wrangler d1 execute switchboard --remote --file schema.sql
