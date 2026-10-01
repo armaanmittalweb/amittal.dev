@@ -21,7 +21,7 @@ export interface Service {
 export const SERVICES: Service[] = [
   { id: 'archive', name: 'amittal.dev', hosts: ['Vercel'], check: { url: 'https://www.amittal.dev/' }, origin: 'https://www.amittal.dev' },
   { id: 'edusched', name: 'EduSched', hosts: ['Vercel', 'Workers', 'Neon'], check: { binding: 'EDUSCHED', path: '/api/test' }, origin: 'https://edusched.amittal.dev' },
-  { id: 'safespace', name: 'SafeSpace', hosts: ['Vercel', 'In-browser'], check: { url: 'https://safespace.amittal.dev/' }, origin: 'https://safespace.amittal.dev' },
+  { id: 'safespace', name: 'SafeSpace', hosts: ['Vercel', 'Workers', 'D1'], check: { url: 'https://safespace.amittal.dev/' }, origin: 'https://safespace.amittal.dev' },
   { id: 'openingos', name: 'OpeningOS', hosts: ['Vercel', 'Workers', 'Neon'], check: { url: 'https://openingos.amittal.dev/' }, origin: 'https://openingos.amittal.dev' },
   { id: 'latentbook', name: 'LatentBook', hosts: ['Vercel', 'Durable Object'], check: { url: 'https://latentbook.amittal.dev/' }, origin: 'https://latentbook.amittal.dev' },
   { id: 'farmsaathi', name: 'FarmSaathi', hosts: ['Vercel', 'HF Space', 'Atlas'], check: { url: 'https://farmsaathi.amittal.dev/' }, origin: 'https://farmsaathi.amittal.dev' },

@@ -51,6 +51,7 @@ function setup(extra: Partial<Bindings> = {}) {
     INTERNAL_KEY: 'ik',
     EDUSCHED: fakeWorker({ dbBytes: 40 * 1024 ** 2, changes: 2, demoCopies: 5, workspaces: 3, users: 9 }),
     OPENINGOS: fakeWorker({ snapshots: 12, tableBytes: 90_000, maxTableBytes: 400_000_000, dbBytes: 30 * 1024 ** 2, written24h: 4, active30d: 10 }),
+    SAFESPACE: fakeWorker({ users: 4, records: 31, dbBytes: 61_440, sessions: 5 }),
     ASSETS: { fetch: async () => new Response('<!doctype html><title>Switchboard</title>', { headers: { 'content-type': 'text/html' } }) } as unknown as Fetcher,
     ...extra,
   } as Bindings

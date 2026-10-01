@@ -73,7 +73,7 @@ export interface Resources {
 type Fetch = typeof fetch
 
 /** Calls a project Worker's private route through its service binding. */
-export async function callInternal(env: Bindings, name: 'EDUSCHED' | 'OPENINGOS', path: string, method = 'GET'): Promise<Record<string, number>> {
+export async function callInternal(env: Bindings, name: 'EDUSCHED' | 'OPENINGOS' | 'SAFESPACE', path: string, method = 'GET'): Promise<Record<string, number>> {
   const target = env[name]
   if (!target) throw new Error(`the ${name} service binding is not configured`)
   if (!env.INTERNAL_KEY) throw new Error('INTERNAL_KEY is not set')
@@ -91,7 +91,11 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
   await Promise.all([
     // Project Workers, over service bindings.
     (async () => {
-      const [edu, os] = await Promise.allSettled([callInternal(env, 'EDUSCHED', '/internal/stats'), callInternal(env, 'OPENINGOS', '/internal/stats')])
+      const [edu, os, ss] = await Promise.allSettled([
+        callInternal(env, 'EDUSCHED', '/internal/stats'),
+        callInternal(env, 'OPENINGOS', '/internal/stats'),
+        callInternal(env, 'SAFESPACE', '/internal/stats'),
+      ])
       const errors: string[] = []
       if (edu.status === 'fulfilled') {
         out.projects.edusched = edu.value
@@ -105,10 +109,16 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
         meter({ id: 'sync-cap', group: 'OpeningOS sync', label: 'Snapshot table against its cap', used: os.value.tableBytes, limit: os.value.maxTableBytes, unit: 'bytes', period: 'now',
           detail: 'New phrases pause at the cap; existing ones keep working' })
       } else errors.push('OpeningOS: ' + message(os.reason))
+      if (ss.status === 'fulfilled') {
+        out.projects.safespace = ss.value
+        meter({ id: 'd1-safespace', group: 'Cloudflare', label: 'SafeSpace D1 storage', used: ss.value.dbBytes, limit: FREE.d1DatabaseBytes, unit: 'bytes', period: 'now',
+          detail: `${ss.value.users} accounts · ${ss.value.records} encrypted records` })
+      } else errors.push('SafeSpace: ' + message(ss.reason))
+      if (ss.status === 'rejected') out.projects.safespace = { error: message(ss.reason) }
       if (edu.status === 'rejected') out.projects.edusched = { error: message(edu.reason) }
       if (os.status === 'rejected') out.projects.openingos = { error: message(os.reason) }
       out.connections.push({ id: 'bindings', label: 'Project Workers', state: errors.length ? 'error' : 'connected',
-        detail: errors.length ? errors.join('; ') : 'EduSched and OpeningOS report through service bindings' })
+        detail: errors.length ? errors.join('; ') : 'EduSched, OpeningOS and SafeSpace report through service bindings' })
     })(),
 
     // This Worker's own D1 database.

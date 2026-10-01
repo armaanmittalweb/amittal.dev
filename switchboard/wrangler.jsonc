@@ -27,7 +27,8 @@
   // The project Workers, reached without leaving Cloudflare (health checks, /edusched/*, admin stats).
   "services": [
     { "binding": "EDUSCHED", "service": "edusched-api" },
-    { "binding": "OPENINGOS", "service": "openingos-sync" }
+    { "binding": "OPENINGOS", "service": "openingos-sync" },
+    { "binding": "SAFESPACE", "service": "safespace-api" }
   ],
   "ratelimits": [
     { "name": "HIT_LIMITER", "namespace_id": "4201", "simple": { "limit": 120, "period": 60 } },
