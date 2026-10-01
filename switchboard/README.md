@@ -26,7 +26,7 @@ Health checks never touch a database. A Neon compute queried every 5 minutes wou
 | **Board** | Every line with its lamp, round trip, 30-day uptime strip and today's views; open alerts; this week's traffic; the four fullest free-tier meters; latest deploys. |
 | **Traffic** | Views and visitors per day (7, 30 or 90 days) for all sites or one, top pages, referring sites, countries and devices. |
 | **Resources** | Free-tier meters with 70% and 90% marks, grouped by provider; numbers from inside each project; which data sources are connected, with setup steps for the rest. |
-| **Controls** | Levers (check now, read usage, clear EduSched overlays, prune OpeningOS sync, test alert); which lines are watched (no deploy needed); redeploys; alert history. |
+| **Controls** | Levers (check now, read usage, clean up EduSched, prune OpeningOS sync, test alert); which lines are watched (no deploy needed); redeploys; alert history. |
 
 Keys: `1` to `4` switch screens and `r` refreshes. The Board refreshes itself every minute while the tab is visible.
 
@@ -43,7 +43,7 @@ Changing the password also rotates the session secret, which signs every device 
 
 | Source | Needs | Gives |
 |---|---|---|
-| Project Workers' `/internal/stats` | `INTERNAL_KEY` (the same secret on all three Workers) | Database sizes, synced phrases, overlays, sandboxes; runs the cleanup levers |
+| Project Workers' `/internal/stats` | `INTERNAL_KEY` (the same secret on all three Workers) | Database sizes, synced phrases, departments, class changes, demo copies; runs the cleanup levers |
 | This Worker's D1 | nothing | Uptime log, traffic, D1 size |
 | Cloudflare GraphQL analytics | `CF_API_TOKEN` (Account Analytics: Read) | Worker requests today against 100k, D1 rows read and written |
 | Neon API | `NEON_API_KEY` | Compute hours this month per project |

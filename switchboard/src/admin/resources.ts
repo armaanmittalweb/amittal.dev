@@ -96,7 +96,7 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
       if (edu.status === 'fulfilled') {
         out.projects.edusched = edu.value
         meter({ id: 'neon-edusched', group: 'Neon', label: 'EduSched database', used: edu.value.dbBytes, limit: FREE.neonStorageBytes, unit: 'bytes', period: 'now',
-          detail: `${edu.value.overlays} overlays · ${edu.value.sandboxes24h} visitor sandboxes today` })
+          detail: `${edu.value.workspaces} departments · ${edu.value.changes} class changes · ${edu.value.demoCopies} demo copies open` })
       } else errors.push('EduSched: ' + message(edu.reason))
       if (os.status === 'fulfilled') {
         out.projects.openingos = os.value

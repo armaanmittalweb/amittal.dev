@@ -49,7 +49,7 @@ function setup(extra: Partial<Bindings> = {}) {
   const env = {
     DB: {} as D1Database, LIVE: 'archive,edusched', ADMIN_PASSWORD_HASH: passwordHash, SESSION_SECRET: 'session-secret',
     INTERNAL_KEY: 'ik',
-    EDUSCHED: fakeWorker({ dbBytes: 40 * 1024 ** 2, overlays: 2, sandboxes24h: 5, users: 9 }),
+    EDUSCHED: fakeWorker({ dbBytes: 40 * 1024 ** 2, changes: 2, demoCopies: 5, workspaces: 3, users: 9 }),
     OPENINGOS: fakeWorker({ snapshots: 12, tableBytes: 90_000, maxTableBytes: 400_000_000, dbBytes: 30 * 1024 ** 2, written24h: 4, active30d: 10 }),
     ASSETS: { fetch: async () => new Response('<!doctype html><title>Switchboard</title>', { headers: { 'content-type': 'text/html' } }) } as unknown as Fetcher,
     ...extra,
@@ -219,7 +219,7 @@ describe('alerts', () => {
   })
 
   it('the cron refreshes resources, raises alerts and pushes them to ntfy', async () => {
-    const s = setup({ NTFY_TOPIC: 'my-topic', EDUSCHED: fakeWorker({ dbBytes: 500 * 1024 ** 2, overlays: 0, sandboxes24h: 0, users: 1 }) })
+    const s = setup({ NTFY_TOPIC: 'my-topic', EDUSCHED: fakeWorker({ dbBytes: 500 * 1024 ** 2, changes: 0, demoCopies: 0, workspaces: 0, users: 1 }) })
     await adminTick(s.env, s.deps)
     expect(await getSetting(s.sql, 'resources')).toContain('neon-edusched')
     expect(s.sql.db.prepare('SELECT key, level FROM alerts').all()).toEqual([{ key: 'meter:neon-edusched', level: 'critical' }])

@@ -184,7 +184,7 @@ export function createAdmin(deps: AdminDeps) {
         }
         case 'cleanup-edusched': {
           const { deleted } = await callInternal(env, 'EDUSCHED', '/internal/cleanup', 'POST')
-          return c.json({ ok: true, message: `Deleted ${deleted} expired overlay${deleted === 1 ? '' : 's'}.` })
+          return c.json({ ok: true, message: `Deleted ${deleted} expired row${deleted === 1 ? '' : 's'}.` })
         }
         case 'set-live': {
           const id = String(body.id ?? '')

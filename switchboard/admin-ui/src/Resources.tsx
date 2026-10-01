@@ -84,8 +84,9 @@ export function Resources({ data, now, busy, onRefresh }: { data: Snapshot | nul
           <dl class="facts">
             {ok(edu) && <>
               <dt>EduSched users</dt><dd>{num(edu.users)}</dd>
-              <dt>Timetable overlays</dt><dd>{num(edu.overlays)}</dd>
-              <dt>Visitor sandboxes, 24 h</dt><dd>{num(edu.sandboxes24h)}</dd>
+              <dt>Departments</dt><dd>{num(edu.workspaces)}</dd>
+              <dt>Class changes</dt><dd>{num(edu.changes)}</dd>
+              <dt>Demo copies open</dt><dd>{num(edu.demoCopies)}</dd>
             </>}
             {ok(os) && <>
               <dt>Synced phrases</dt><dd>{num(os.snapshots)}</dd>

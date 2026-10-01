@@ -14,7 +14,7 @@ interface Lever {
 const LEVERS: Lever[] = [
   { name: 'check-now', title: 'Check every line', body: 'Runs a round of health checks now instead of waiting for the 5-minute cron, and re-evaluates alerts.', button: 'Check now' },
   { name: 'refresh-resources', title: 'Read usage', body: 'Reads every meter now. This wakes both Neon databases for a few minutes, which costs a little compute.', button: 'Refresh usage' },
-  { name: 'cleanup-edusched', title: 'EduSched: clear expired overlays', body: 'Deletes cancellations and postponements past their date, and visitor sandboxes older than a day. The hourly cron does this too.', button: 'Clear now' },
+  { name: 'cleanup-edusched', title: 'EduSched: clean up', body: 'Deletes expired demo colleges and sessions, class changes older than 180 days, and used or expired codes. The hourly cron does this too.', button: 'Clear now' },
   { name: 'prune-openingos', title: 'OpeningOS: prune stale sync', body: 'Deletes synced snapshots nobody has written for a year. The daily cron does this too.', button: 'Prune now', confirm: 'Delete every synced snapshot untouched for a year?' },
   { name: 'test-alert', title: 'Send a test alert', body: 'Pushes a test notification to your ntfy topic, to check alerts reach your phone.', button: 'Send test' },
 ]
