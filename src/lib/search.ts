@@ -76,7 +76,7 @@ const SYNONYMS: Record<string, string> = {
   frontend: 'react web interface', ui: 'interface react web', web: 'react frontend', react: 'frontend web',
   database: 'mysql postgresql mongodb sql', db: 'database', sql: 'mysql postgresql', postgres: 'postgresql', mongo: 'mongodb', nosql: 'mongodb',
   cpp: 'c++ low latency', latency: 'low-latency performance', fast: 'low latency performance', performance: 'latency benchmark', realtime: 'latency',
-  hft: 'order book latency trading', trading: 'order book market', finance: 'order book market', stock: 'order book market', exchange: 'order book matching',
+  onnx: 'loomcore inference runtime', inference: 'onnx runtime loomcore', runtime: 'loomcore onnx scheduler', scheduler: 'loomcore dag batching', dag: 'loomcore graph scheduler', quantization: 'int8 loomcore', int8: 'quantization loomcore', batching: 'loomcore scheduler',
   concurrency: 'lockfree thread', thread: 'concurrency', lockfree: 'concurrency ring buffer',
   chess: 'openingos opening repertoire', farm: 'farmsaathi farming crop', farming: 'farmsaathi agriculture', agriculture: 'farmsaathi farming', crop: 'farmsaathi', plant: 'leaf disease farmsaathi',
   timetable: 'edusched schedule', schedule: 'edusched timetable', college: 'education thapar', university: 'education thapar', school: 'education', degree: 'education', study: 'education',

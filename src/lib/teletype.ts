@@ -46,7 +46,7 @@ const err = (t: string, hint?: string): Result => out(say(t, 'err'), ...(hint ? 
 
 export const promptFor = (cwd: string | null) => (cwd ? 'lab/' + cwd : 'lab') + ' $'
 
-/** A path as typed (`fieldnotes`, `../latentbook`, `/lab/x`, `..`, `~`) to a drawing id, null for /lab, or undefined if it isn't there. */
+/** A path as typed (`fieldnotes`, `../loomcore`, `/lab/x`, `..`, `~`) to a drawing id, null for /lab, or undefined if it isn't there. */
 function resolve(arg: string, cwd: string | null): string | null | undefined {
   let p = arg.trim().toLowerCase().replace(/\/+$/, '')
   if (p === '' || p === '~' || p === '/' || p === '/lab' || p === 'lab') return null

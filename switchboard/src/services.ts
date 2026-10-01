@@ -23,8 +23,8 @@ export const SERVICES: Service[] = [
   { id: 'edusched', name: 'EduSched', hosts: ['Vercel', 'Workers', 'Neon'], check: { binding: 'EDUSCHED', path: '/api/test' }, origin: 'https://edusched.amittal.dev' },
   { id: 'safespace', name: 'SafeSpace', hosts: ['Vercel', 'Workers', 'D1'], check: { url: 'https://safespace.amittal.dev/' }, origin: 'https://safespace.amittal.dev' },
   { id: 'openingos', name: 'OpeningOS', hosts: ['Vercel', 'Workers', 'Neon'], check: { url: 'https://openingos.amittal.dev/' }, origin: 'https://openingos.amittal.dev' },
-  { id: 'latentbook', name: 'LatentBook', hosts: ['Vercel', 'Durable Object'], check: { url: 'https://latentbook.amittal.dev/' }, origin: 'https://latentbook.amittal.dev' },
-  { id: 'farmsaathi', name: 'FarmSaathi', hosts: ['Vercel', 'HF Space', 'Atlas'], check: { url: 'https://farmsaathi.amittal.dev/' }, origin: 'https://farmsaathi.amittal.dev' },
+  { id: 'loomcore', name: 'Loomcore', hosts: ['Vercel', 'HF Space'], check: { url: 'https://loomcore.amittal.dev/' }, origin: 'https://loomcore.amittal.dev' },
+  { id: 'farmsaathi', name: 'FarmSaathi', hosts: ['Vercel', 'Workers', 'D1', 'HF Space'], check: { url: 'https://farmsaathi.amittal.dev/' }, origin: 'https://farmsaathi.amittal.dev' },
 ]
 
 export const liveIds = (live: string | undefined) => new Set((live ?? '').split(',').map(s => s.trim()).filter(Boolean))

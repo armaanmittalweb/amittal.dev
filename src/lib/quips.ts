@@ -104,7 +104,7 @@ export const QUIPS = {
     'Knock knock. Race condition. Who is there?',
     'There are two hard problems in computer science: cache invalidation, naming things and off-by-one errors.',
     'A RAG system walks into a library and cites every book it did not read. Not this one: it cites its sources.',
-    'Why did the order book leave the mutex? Too much contention.',
+    'Why did the scheduler skip bert_tiny? MobileNet was already sure of itself.',
     'An LLM, a regex and a human walk into a bar. The regex matches the bartender.',
     'My code has no bugs, only undocumented features, filed under Known Failures.',
     'To understand recursion, first understand recursion.',
