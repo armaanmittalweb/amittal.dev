@@ -72,7 +72,7 @@ export function Controls({ data, run, busy, onSignedOut }: { data: Overview; run
         <Panel title="Redeploy" kicker="VERCEL · FROM MAIN" id="redeploy-title">
           {!vercel && <p class="notice">Connect Vercel in Resources to redeploy from here.</p>}
           <ul class="redeploys">
-            {['archive', 'edusched', 'safespace', 'openingos'].map(site => {
+            {['archive', 'edusched', 'safespace', 'openingos', 'farmsaathi', 'loomcore'].map(site => {
               const d = deploys.get(site)
               const name = data.services.find(s => s.id === site)?.name ?? site
               return (

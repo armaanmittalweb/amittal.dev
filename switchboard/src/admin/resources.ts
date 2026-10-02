@@ -29,6 +29,8 @@ export const VERCEL_PROJECTS: { site: string; project: string; repo: string }[] 
   { site: 'edusched', project: 'edusched', repo: 'TimeTable-Management-for-College' },
   { site: 'safespace', project: 'safespace', repo: 'SafeSpace' },
   { site: 'openingos', project: 'openingos', repo: 'OpeningOS' },
+  { site: 'farmsaathi', project: 'farmsaathi', repo: 'FarmSathi' },
+  { site: 'loomcore', project: 'loomcore', repo: 'Loomcore' },
 ]
 export const GITHUB_OWNER = 'armaanmittalweb'
 
@@ -73,7 +75,7 @@ export interface Resources {
 type Fetch = typeof fetch
 
 /** Calls a project Worker's private route through its service binding. */
-export async function callInternal(env: Bindings, name: 'EDUSCHED' | 'OPENINGOS' | 'SAFESPACE', path: string, method = 'GET'): Promise<Record<string, number>> {
+export async function callInternal(env: Bindings, name: 'EDUSCHED' | 'OPENINGOS' | 'SAFESPACE' | 'FARMSAATHI', path: string, method = 'GET'): Promise<Record<string, number>> {
   const target = env[name]
   if (!target) throw new Error(`the ${name} service binding is not configured`)
   if (!env.INTERNAL_KEY) throw new Error('INTERNAL_KEY is not set')
@@ -91,10 +93,11 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
   await Promise.all([
     // Project Workers, over service bindings.
     (async () => {
-      const [edu, os, ss] = await Promise.allSettled([
+      const [edu, os, ss, fs] = await Promise.allSettled([
         callInternal(env, 'EDUSCHED', '/internal/stats'),
         callInternal(env, 'OPENINGOS', '/internal/stats'),
         callInternal(env, 'SAFESPACE', '/internal/stats'),
+        callInternal(env, 'FARMSAATHI', '/internal/stats'),
       ])
       const errors: string[] = []
       if (edu.status === 'fulfilled') {
@@ -114,11 +117,17 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
         meter({ id: 'd1-safespace', group: 'Cloudflare', label: 'SafeSpace D1 storage', used: ss.value.dbBytes, limit: FREE.d1DatabaseBytes, unit: 'bytes', period: 'now',
           detail: `${ss.value.users} accounts · ${ss.value.records} encrypted records` })
       } else errors.push('SafeSpace: ' + message(ss.reason))
+      if (fs.status === 'fulfilled') {
+        out.projects.farmsaathi = fs.value
+        meter({ id: 'd1-farmsaathi', group: 'Cloudflare', label: 'FarmSaathi D1 storage', used: fs.value.dbBytes, limit: FREE.d1DatabaseBytes, unit: 'bytes', period: 'now',
+          detail: `${fs.value.users} farmers signed in · ${fs.value.chats} saved chats` })
+      } else errors.push('FarmSaathi: ' + message(fs.reason))
       if (ss.status === 'rejected') out.projects.safespace = { error: message(ss.reason) }
+      if (fs.status === 'rejected') out.projects.farmsaathi = { error: message(fs.reason) }
       if (edu.status === 'rejected') out.projects.edusched = { error: message(edu.reason) }
       if (os.status === 'rejected') out.projects.openingos = { error: message(os.reason) }
       out.connections.push({ id: 'bindings', label: 'Project Workers', state: errors.length ? 'error' : 'connected',
-        detail: errors.length ? errors.join('; ') : 'EduSched, OpeningOS and SafeSpace report through service bindings' })
+        detail: errors.length ? errors.join('; ') : 'EduSched, OpeningOS, SafeSpace and FarmSaathi report through service bindings' })
     })(),
 
     // This Worker's own D1 database.

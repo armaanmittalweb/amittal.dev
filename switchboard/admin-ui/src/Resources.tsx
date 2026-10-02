@@ -63,7 +63,7 @@ export function Resources({ data, now, busy, onRefresh }: { data: Snapshot | nul
   }
 
   const groups = [...new Set(data.meters.map(m => m.group))]
-  const edu = data.projects.edusched, os = data.projects.openingos, ss = data.projects.safespace
+  const edu = data.projects.edusched, os = data.projects.openingos, ss = data.projects.safespace, fs = data.projects.farmsaathi
   const ok = (p: unknown): p is Record<string, number> => !!p && !('error' in (p as object))
 
   return (
@@ -97,9 +97,15 @@ export function Resources({ data, now, busy, onRefresh }: { data: Snapshot | nul
               <dt>SafeSpace accounts</dt><dd>{num(ss.users)}</dd>
               <dt>Encrypted records</dt><dd>{num(ss.records)}</dd>
             </>}
+            {ok(fs) && <>
+              <dt>FarmSaathi accounts</dt><dd>{num(fs.users)}</dd>
+              <dt>Saved chats</dt><dd>{num(fs.chats)}</dd>
+              <dt>Answers today</dt><dd>{num((fs.today as unknown as Record<string, number>)?.chat ?? 0)}</dd>
+            </>}
             {!ok(edu) && <><dt>EduSched</dt><dd class="is-err">{edu?.error ?? 'not read'}</dd></>}
             {!ok(os) && <><dt>OpeningOS</dt><dd class="is-err">{os?.error ?? 'not read'}</dd></>}
             {!ok(ss) && <><dt>SafeSpace</dt><dd class="is-err">{ss?.error ?? 'not read'}</dd></>}
+            {!ok(fs) && <><dt>FarmSaathi</dt><dd class="is-err">{fs?.error ?? 'not read'}</dd></>}
           </dl>
         </Panel>
 
