@@ -1,8 +1,9 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { checkAll, type Probe, type Result } from './checks'
+import { readModalReport } from './admin/resources'
 import { SERVICES, liveIds } from './services'
-import type { Sql } from './sql'
+import { setSetting, type Sql } from './sql'
 import type { UptimeStore } from './store'
 import { readHit, recordHit } from './traffic'
 
@@ -106,6 +107,19 @@ export function createApp(deps: Deps) {
     return c.body(null, 204)
   })
 
+  // Modal's spend, pushed every 6 hours by modal/meter.py with the INTERNAL_KEY. A 404 for anyone else.
+  app.post('/internal/modal', async c => {
+    const sql = deps.sql?.(c.env), key = c.env.INTERNAL_KEY
+    if (!sql || !key || !sameKey(c.req.header('x-internal-key') ?? '', key)) return c.json({ error: 'Not found' }, 404)
+    const text = await c.req.text()
+    let body: unknown = null
+    try { body = text.length <= 8000 ? JSON.parse(text) : null } catch { body = null }
+    const report = readModalReport(body, now())
+    if (!report) return c.json({ error: 'Expected {cycleStart, metered, billed, apps}' }, 400)
+    await setSetting(sql, 'modal', JSON.stringify(report))
+    return c.body(null, 204)
+  })
+
   // /edusched/api/... → the EduSched Worker's /api/..., through the service binding.
   app.all('/edusched/*', async c => {
     if (!c.env.EDUSCHED) return c.json({ error: 'EduSched is not connected yet' }, 503)
@@ -116,6 +130,14 @@ export function createApp(deps: Deps) {
 
   app.notFound(c => c.json({ error: 'Not found' }, 404))
   return app
+}
+
+/** Compares two keys in time that does not depend on where they differ. */
+function sameKey(a: string, b: string) {
+  const x = new TextEncoder().encode(a), y = new TextEncoder().encode(b)
+  let diff = x.length ^ y.length
+  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0)
+  return diff === 0
 }
 
 /** The cron: check every live service, keep the result, and drop rows older than 35 days. */

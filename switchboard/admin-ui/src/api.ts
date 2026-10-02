@@ -24,12 +24,12 @@ export interface Meter {
   label: string
   used: number
   limit: number
-  unit: 'bytes' | 'count' | 'hours'
+  unit: 'bytes' | 'count' | 'hours' | 'usd'
   period: 'now' | 'today' | 'month'
   detail?: string
 }
 
-export interface Connection { id: 'bindings' | 'cloudflare' | 'neon' | 'vercel' | 'ntfy'; label: string; state: 'connected' | 'missing' | 'error'; detail: string }
+export interface Connection { id: 'bindings' | 'cloudflare' | 'neon' | 'vercel' | 'modal' | 'ntfy'; label: string; state: 'connected' | 'missing' | 'error'; detail: string }
 export interface Deployment { site: string; project: string; state: string; at: number; commit: string | null; sha: string | null; url: string }
 
 export interface Resources {
@@ -39,6 +39,7 @@ export interface Resources {
   deployments: Deployment[]
   projects: Record<string, Record<string, number> | { error: string }>
   workers: { script: string; requests: number; errors: number }[]
+  modal?: { at: number; cycleStart: string; metered: number; billed: number; apps: Record<string, number> } | null
 }
 
 export interface Overview {

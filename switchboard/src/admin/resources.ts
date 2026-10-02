@@ -2,14 +2,16 @@
  * Free-tier usage for the admin dashboard. Each source is optional and fails on its own:
  *   - the project Workers' /internal/stats, over service bindings (database sizes, row counts);
  *   - this Worker's own D1 size;
- *   - Cloudflare's GraphQL analytics (Worker requests, D1 rows), with CF_API_TOKEN;
+ *   - Cloudflare's GraphQL analytics (Worker requests, D1 rows, Workers AI neurons), with CF_API_TOKEN;
  *   - Neon's API (compute hours), with NEON_API_KEY;
- *   - Vercel's API (latest production deploys, redeploys), with VERCEL_TOKEN.
+ *   - Vercel's API (latest production deploys, redeploys), with VERCEL_TOKEN;
+ *   - Modal's spend this month, pushed to /internal/modal by modal/meter.py (Modal has no HTTP API
+ *     for billing, and asking a runtime for its health would wake it and spend credits).
  *
  * Collecting wakes both Neon databases, so the cron does it every 6 hours, not every 5 minutes.
  */
 import type { Bindings } from '../app'
-import type { Sql } from '../sql'
+import { getSetting, type Sql } from '../sql'
 
 /** Free-plan limits as of September 2026. Check the providers' pricing pages if a meter looks wrong. */
 export const FREE = {
@@ -19,6 +21,8 @@ export const FREE = {
   d1DatabaseBytes: 500 * 1024 ** 2,
   neonStorageBytes: 512 * 1024 ** 2, // per project
   neonComputeHoursMonth: 100, // CU-hours per project
+  workersAiNeuronsDay: 10_000, // whole account, resets 00:00 UTC
+  modalCreditsMonth: 30, // Starter plan, US dollars; no card on file, so usage stops there
 }
 
 export const REFRESH_MS = 6 * 3_600_000
@@ -40,13 +44,13 @@ export interface Meter {
   label: string
   used: number
   limit: number
-  unit: 'bytes' | 'count' | 'hours'
+  unit: 'bytes' | 'count' | 'hours' | 'usd'
   period: 'now' | 'today' | 'month'
   detail?: string
 }
 
 export interface Connection {
-  id: 'bindings' | 'cloudflare' | 'neon' | 'vercel' | 'ntfy'
+  id: 'bindings' | 'cloudflare' | 'neon' | 'vercel' | 'modal' | 'ntfy'
   label: string
   state: 'connected' | 'missing' | 'error'
   detail: string
@@ -68,8 +72,52 @@ export interface Resources {
   connections: Connection[]
   deployments: Deployment[]
   /** Raw numbers from each project's /internal/stats, or the error that stopped them. */
-  projects: Record<string, Record<string, number> | { error: string }>
+  projects: Record<string, Record<string, unknown> | { error: string }>
   workers: { script: string; requests: number; errors: number }[]
+  /** The latest Modal report, if the meter has sent one. */
+  modal: ModalReport | null
+}
+
+/** What modal/meter.py sends: this billing cycle's spend in US dollars, in total and per app. */
+export interface ModalReport {
+  at: number
+  cycleStart: string
+  metered: number
+  billed: number
+  apps: Record<string, number>
+}
+
+const money = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e6
+
+/** Checks a report before it is kept; null when anything is off. `at` is when it arrived. */
+export function readModalReport(body: unknown, at: number): ModalReport | null {
+  if (!body || typeof body !== 'object') return null
+  const b = body as Record<string, unknown>
+  if (!money(b.metered) || !money(b.billed) || typeof b.cycleStart !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(b.cycleStart)) return null
+  if (!b.apps || typeof b.apps !== 'object') return null
+  const apps = Object.entries(b.apps as Record<string, unknown>)
+  if (apps.length > 50 || apps.some(([name, cost]) => !/^[\w.-]{1,64}$/.test(name) || !money(cost))) return null
+  return { at, cycleStart: b.cycleStart.slice(0, 10), metered: b.metered as number, billed: b.billed as number, apps: Object.fromEntries(apps) as Record<string, number> }
+}
+
+/** Short names for the providers FarmSaathi reports, as the dashboard labels them. */
+const FARMSAATHI_PROVIDERS: Record<string, string> = {
+  'workers-ai': 'Answers from Workers AI (Llama 3.3 70B)',
+  groq: 'Answers from Groq',
+  gemini: 'Answers from Gemini',
+  openrouter: 'Answers from OpenRouter',
+  'indic-stt': 'Hindi and Punjabi heard by IndicConformer',
+  'workers-ai-stt': 'Recordings heard by Whisper on Workers AI',
+  'groq-stt': 'Recordings heard by Whisper on Groq',
+}
+
+interface FarmSaathiStats {
+  users: number
+  chats: number
+  dbBytes: number
+  today?: { chat: number; transcribe: number; speak: number }
+  byProvider?: Record<string, number>
+  caps?: Record<string, number>
 }
 
 type Fetch = typeof fetch
@@ -87,7 +135,7 @@ export async function callInternal(env: Bindings, name: 'EDUSCHED' | 'OPENINGOS'
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 export async function collectResources(env: Bindings, sql: Sql, now: number, f: Fetch = fetch): Promise<Resources> {
-  const out: Resources = { at: now, meters: [], connections: [], deployments: [], projects: {}, workers: [] }
+  const out: Resources = { at: now, meters: [], connections: [], deployments: [], projects: {}, workers: [], modal: null }
   const meter = (m: Meter) => out.meters.push(m)
 
   await Promise.all([
@@ -118,9 +166,16 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
           detail: `${ss.value.users} accounts · ${ss.value.records} encrypted records` })
       } else errors.push('SafeSpace: ' + message(ss.reason))
       if (fs.status === 'fulfilled') {
+        const f = fs.value as unknown as FarmSaathiStats
         out.projects.farmsaathi = fs.value
-        meter({ id: 'd1-farmsaathi', group: 'Cloudflare', label: 'FarmSaathi D1 storage', used: fs.value.dbBytes, limit: FREE.d1DatabaseBytes, unit: 'bytes', period: 'now',
-          detail: `${fs.value.users} farmers signed in · ${fs.value.chats} saved chats` })
+        meter({ id: 'd1-farmsaathi', group: 'Cloudflare', label: 'FarmSaathi D1 storage', used: f.dbBytes, limit: FREE.d1DatabaseBytes, unit: 'bytes', period: 'now',
+          detail: `${f.users} farmers signed in · ${f.chats} saved chats` })
+        // Each provider against the daily cap the FarmSaathi Worker stops at (India day, from 00:00 IST).
+        for (const [p, cap] of Object.entries(f.caps ?? {})) {
+          if (!cap) continue
+          meter({ id: 'farmsaathi-' + p, group: 'FarmSaathi', label: FARMSAATHI_PROVIDERS[p] ?? p, used: f.byProvider?.[p] ?? 0, limit: cap, unit: 'count', period: 'today',
+            detail: 'Daily cap set in the FarmSaathi Worker; past it the next provider answers' })
+        }
       } else errors.push('FarmSaathi: ' + message(fs.reason))
       if (ss.status === 'rejected') out.projects.safespace = { error: message(ss.reason) }
       if (fs.status === 'rejected') out.projects.farmsaathi = { error: message(fs.reason) }
@@ -178,7 +233,54 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
         out.connections.push({ id: 'cloudflare', label: 'Cloudflare analytics', state: 'connected', detail: `${out.workers.length} Workers reporting` })
       } catch (e) {
         out.connections.push({ id: 'cloudflare', label: 'Cloudflare analytics', state: 'error', detail: message(e) })
+        return
       }
+      // Workers AI, asked separately so a token without this dataset still gets the meters above.
+      try {
+        const day = new Date(now).toISOString().slice(0, 10)
+        const res = await f('https://api.cloudflare.com/client/v4/graphql', {
+          method: 'POST',
+          headers: { authorization: `Bearer ${env.CF_API_TOKEN}`, 'content-type': 'application/json' },
+          body: JSON.stringify({
+            query: `query ($acct: String!, $day: Date!) { viewer { accounts(filter: { accountTag: $acct }) {
+              ai: aiInferenceAdaptiveGroups(limit: 50, filter: { date_geq: $day }) { sum { totalNeurons } dimensions { modelId } }
+            } } }`,
+            variables: { acct: env.CF_ACCOUNT_ID, day },
+          }),
+        })
+        const body = (await res.json()) as { data?: { viewer: { accounts: { ai?: { sum: { totalNeurons: number }; dimensions: { modelId: string } }[] }[] } } }
+        const rows = body.data?.viewer.accounts[0]?.ai
+        if (!res.ok || !rows) return
+        const byModel = new Map<string, number>()
+        for (const r of rows) {
+          const name = r.dimensions.modelId.split('/').pop() ?? r.dimensions.modelId
+          byModel.set(name, (byModel.get(name) ?? 0) + r.sum.totalNeurons)
+        }
+        const used = [...byModel.values()].reduce((a, n) => a + n, 0)
+        meter({ id: 'workers-ai-neurons', group: 'Cloudflare', label: 'Workers AI neurons today', used, limit: FREE.workersAiNeuronsDay, unit: 'count', period: 'today',
+          detail: [...byModel].sort((a, b) => b[1] - a[1]).map(([m, n]) => `${m} ${Math.round(n).toLocaleString('en')}`).join(' · ') || 'No inference yet today' })
+      } catch {
+        // No meter: the Worker-request meters above still stand.
+      }
+    })(),
+
+    // Modal: the spend modal/meter.py last reported. Never asks Modal itself (see the top of the file).
+    (async () => {
+      const raw = await getSetting(sql, 'modal').catch(() => null)
+      let report: ModalReport | null = null
+      try { report = raw ? (JSON.parse(raw) as ModalReport) : null } catch { report = null }
+      if (!report) {
+        out.connections.push({ id: 'modal', label: 'Modal', state: 'missing', detail: 'Deploy modal/meter.py to report Modal spend every 6 hours' })
+        return
+      }
+      out.modal = report
+      const apps = Object.entries(report.apps).sort((a, b) => b[1] - a[1])
+      meter({ id: 'modal-credits', group: 'Modal', label: 'Modal credits this month', used: report.metered, limit: FREE.modalCreditsMonth, unit: 'usd', period: 'month',
+        detail: (apps.map(([name, cost]) => `${name} $${cost.toFixed(2)}`).join(' · ') || 'Nothing has run this month') + (report.billed > 0 ? ` · billed $${report.billed.toFixed(2)}` : '') })
+      const hours = (now - report.at) / 3_600_000
+      out.connections.push(hours > 13
+        ? { id: 'modal', label: 'Modal', state: 'error', detail: `The last report is ${Math.round(hours)} hours old; check the switchboard-meter app on Modal` }
+        : { id: 'modal', label: 'Modal', state: 'connected', detail: `Spend reported ${hours < 1 ? 'within the hour' : Math.round(hours) + ' h ago'} by the switchboard-meter app` })
     })(),
 
     // Neon: compute hours this month, per project.
@@ -227,7 +329,7 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
   out.connections.push(env.NTFY_TOPIC
     ? { id: 'ntfy', label: 'Phone alerts (ntfy)', state: 'connected', detail: 'Alerts are pushed to your ntfy topic' }
     : { id: 'ntfy', label: 'Phone alerts (ntfy)', state: 'missing', detail: 'Add NTFY_TOPIC to get alerts on your phone' })
-  const order = ['bindings', 'cloudflare', 'neon', 'vercel', 'ntfy']
+  const order = ['bindings', 'cloudflare', 'neon', 'vercel', 'modal', 'ntfy']
   out.connections.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
   return out
 }

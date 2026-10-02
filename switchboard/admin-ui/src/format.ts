@@ -21,6 +21,7 @@ export function bytes(b: number) {
 export function amount(v: number, unit: Meter['unit']) {
   if (unit === 'bytes') return bytes(v)
   if (unit === 'hours') return `${v < 10 ? v.toFixed(1) : Math.round(v)} h`
+  if (unit === 'usd') return `$${v < 100 ? v.toFixed(2) : Math.round(v)}`
   return compact(v)
 }
 

@@ -21,6 +21,10 @@ const SETUP: Record<Connection['id'], string[]> = {
     'vercel.com/account/settings/tokens → Create Token, scope armaanmittalwebs-projects.',
     'In Portfolio/switchboard: npx wrangler secret put VERCEL_TOKEN',
   ],
+  modal: [
+    'modal secret create switchboard INTERNAL_KEY=<the Switchboard INTERNAL_KEY>',
+    'In Portfolio/switchboard: modal deploy modal/meter.py (it reports now and every 6 hours).',
+  ],
   ntfy: [
     'Install the ntfy app (Android or iOS) and subscribe to a long random topic, e.g. sb-7f3k9q2m4x.',
     'In Portfolio/switchboard: npx wrangler secret put NTFY_TOPIC (the same topic name).',
@@ -65,6 +69,11 @@ export function Resources({ data, now, busy, onRefresh }: { data: Snapshot | nul
   const groups = [...new Set(data.meters.map(m => m.group))]
   const edu = data.projects.edusched, os = data.projects.openingos, ss = data.projects.safespace, fs = data.projects.farmsaathi
   const ok = (p: unknown): p is Record<string, number> => !!p && !('error' in (p as object))
+  // FarmSaathi also reports nested counters: today's use, refusals and dropped recordings.
+  const fx = (ok(fs) ? fs : {}) as unknown as { today?: Record<string, number>; guard?: Record<string, number>; stt?: Record<string, number> }
+  // guard:nolabel counts answers that came back without a verdict line; those were still answered.
+  const refused = (o: Record<string, number> | undefined) => Object.entries(o ?? {}).reduce((a, [k, n]) => (k === 'nolabel' ? a : a + n), 0)
+  const modal = data.modal?.apps ?? null
 
   return (
     <div class="resources stack">
@@ -100,8 +109,14 @@ export function Resources({ data, now, busy, onRefresh }: { data: Snapshot | nul
             {ok(fs) && <>
               <dt>FarmSaathi accounts</dt><dd>{num(fs.users)}</dd>
               <dt>Saved chats</dt><dd>{num(fs.chats)}</dd>
-              <dt>Answers today</dt><dd>{num((fs.today as unknown as Record<string, number>)?.chat ?? 0)}</dd>
+              <dt>Answers today</dt><dd>{num(fx.today?.chat ?? 0)}</dd>
+              <dt>Spoken questions today</dt><dd>{num(fx.today?.transcribe ?? 0)}</dd>
+              <dt>Answers read aloud today</dt><dd>{num(fx.today?.speak ?? 0)}</dd>
+              <dt>Off-topic questions refused today</dt><dd>{num(refused(fx.guard))}</dd>
+              <dt>Recordings dropped as loops today</dt><dd>{num(fx.stt?.unusable ?? 0)}</dd>
+              {modal?.['farmsaathi-voice'] !== undefined && <><dt>Voice on Modal this month</dt><dd>${modal['farmsaathi-voice'].toFixed(2)}</dd></>}
             </>}
+            {modal?.loomcore !== undefined && <><dt>Loomcore runtime on Modal this month</dt><dd>${modal.loomcore.toFixed(2)}</dd></>}
             {!ok(edu) && <><dt>EduSched</dt><dd class="is-err">{edu?.error ?? 'not read'}</dd></>}
             {!ok(os) && <><dt>OpeningOS</dt><dd class="is-err">{os?.error ?? 'not read'}</dd></>}
             {!ok(ss) && <><dt>SafeSpace</dt><dd class="is-err">{ss?.error ?? 'not read'}</dd></>}

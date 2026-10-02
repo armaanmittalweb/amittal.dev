@@ -162,7 +162,50 @@ describe('resources', () => {
     const ids = res.meters.map(m => m.id)
     expect(ids).toEqual(expect.arrayContaining(['neon-edusched', 'neon-openingos', 'sync-cap', 'd1-switchboard']))
     expect(res.meters.find(m => m.id === 'neon-edusched')?.used).toBe(40 * 1024 ** 2)
-    expect(Object.fromEntries(res.connections.map(c => [c.id, c.state]))).toEqual({ bindings: 'connected', cloudflare: 'missing', neon: 'missing', vercel: 'missing', ntfy: 'missing' })
+    expect(Object.fromEntries(res.connections.map(c => [c.id, c.state]))).toEqual({ bindings: 'connected', cloudflare: 'missing', neon: 'missing', vercel: 'missing', modal: 'missing', ntfy: 'missing' })
+  })
+
+  it('draws each FarmSaathi provider against its daily cap', async () => {
+    const stats = { users: 2, chats: 7, dbBytes: 81_920, byProvider: { 'workers-ai': 42, 'indic-stt': 5 }, caps: { 'workers-ai': 300, 'workers-ai-stt': 300, 'indic-stt': 2000 } }
+    const s = setup({ FARMSAATHI: fakeWorker(stats as unknown as Record<string, number>) })
+    const res = await collectResources(s.env, s.sql, T0, s.deps.fetch)
+    const fs = res.meters.filter(m => m.group === 'FarmSaathi').map(m => [m.id, m.used, m.limit])
+    expect(fs).toEqual([['farmsaathi-workers-ai', 42, 300], ['farmsaathi-workers-ai-stt', 0, 300], ['farmsaathi-indic-stt', 5, 2000]])
+  })
+
+  it('reads Workers AI neurons in a request of their own', async () => {
+    const s = setup({ CF_API_TOKEN: 't', CF_ACCOUNT_ID: 'acct' })
+    const f = (async (_url: string, init: RequestInit) => {
+      const ai = String(init.body).includes('aiInferenceAdaptiveGroups')
+      return Response.json({ data: { viewer: { accounts: [ai
+        ? { ai: [{ sum: { totalNeurons: 3035.4 }, dimensions: { modelId: '@cf/meta/llama-3.3-70b-instruct-fp8-fast' } }, { sum: { totalNeurons: 259.7 }, dimensions: { modelId: '@cf/openai/whisper-large-v3-turbo' } }] }
+        : { workers: [], d1: [] }] } } })
+    }) as unknown as typeof fetch
+    const res = await collectResources(s.env, s.sql, T0, f)
+    expect(res.meters.find(m => m.id === 'workers-ai-neurons')).toMatchObject({
+      used: 3295.1, limit: 10_000, detail: 'llama-3.3-70b-instruct-fp8-fast 3,035 · whisper-large-v3-turbo 260',
+    })
+  })
+
+  it('keeps the Modal report the meter pushes, and only with the internal key', async () => {
+    const s = setup()
+    const report = { cycleStart: '2026-10-01', metered: 0.4113, billed: 0, apps: { loomcore: 0.3172, 'farmsaathi-voice': 0.0907 } }
+    const push = (key: string, body: unknown) => s.api.request('/internal/modal', {
+      method: 'POST', headers: { 'x-internal-key': key, 'content-type': 'application/json' }, body: JSON.stringify(body),
+    }, s.env)
+    expect((await push('wrong', report)).status).toBe(404)
+    expect((await push('ik', { ...report, metered: -1 })).status).toBe(400)
+    expect((await push('ik', { ...report, apps: { 'bad name!': 1 } })).status).toBe(400)
+    expect((await push('ik', report)).status).toBe(204)
+
+    s.clock.t = T0 + 2 * 3_600_000
+    let res = await collectResources(s.env, s.sql, s.clock.t, s.deps.fetch)
+    expect(res.meters.find(m => m.id === 'modal-credits')).toMatchObject({ used: 0.4113, limit: 30, unit: 'usd', detail: 'loomcore $0.32 · farmsaathi-voice $0.09' })
+    expect(res.connections.find(c => c.id === 'modal')).toMatchObject({ state: 'connected', detail: expect.stringContaining('2 h ago') })
+    expect(res.modal?.apps.loomcore).toBe(0.3172)
+
+    res = await collectResources(s.env, s.sql, T0 + 20 * 3_600_000, s.deps.fetch)
+    expect(res.connections.find(c => c.id === 'modal')?.state).toBe('error')
   })
 
   it('reads Worker requests and D1 rows from Cloudflare when a token is set', async () => {

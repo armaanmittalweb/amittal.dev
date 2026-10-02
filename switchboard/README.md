@@ -13,6 +13,7 @@ One Cloudflare Worker (free plan) with two faces:
 | `GET /uptime` | Per service, per UTC day for the last 30 days: checks passed, checks run, average round trip. |
 | `POST /hit` | Page-view beacons from the sites (see Traffic below). Always 204. |
 | `/edusched/*` | Forwarded to the EduSched API Worker through a service binding, with the prefix removed. |
+| `POST /internal/modal` | Modal's spend this month, pushed by `modal/meter.py` with `x-internal-key`. 404 without the key, 400 for a malformed report. |
 | `GET /health` | The Switchboard itself. |
 
 CORS allows `https://www.amittal.dev`, `https://amittal.dev` and `http://localhost:5173`.
@@ -43,11 +44,12 @@ Changing the password also rotates the session secret, which signs every device 
 
 | Source | Needs | Gives |
 |---|---|---|
-| Project Workers' `/internal/stats` | `INTERNAL_KEY` (the same secret on all three Workers) | Database sizes, synced phrases, departments, class changes, demo copies; runs the cleanup levers |
+| Project Workers' `/internal/stats` | `INTERNAL_KEY` (the same secret on every project Worker) | Database sizes, synced phrases, departments, class changes, demo copies; FarmSaathi's answers, transcriptions and read-aloud clips today, each AI provider against its daily cap, refused off-topic questions and dropped looping transcripts; runs the cleanup levers |
 | This Worker's D1 | nothing | Uptime log, traffic, D1 size |
-| Cloudflare GraphQL analytics | `CF_API_TOKEN` (Account Analytics: Read) | Worker requests today against 100k, D1 rows read and written |
+| Cloudflare GraphQL analytics | `CF_API_TOKEN` (Account Analytics: Read) | Worker requests today against 100k, D1 rows read and written, Workers AI neurons today against 10k (per model) |
 | Neon API | `NEON_API_KEY` | Compute hours this month per project |
 | Vercel API | `VERCEL_TOKEN` | Latest production deploy per site, one-click redeploys |
+| Modal billing, via `modal/meter.py` | Modal secret `switchboard` holding `INTERNAL_KEY`; `modal deploy modal/meter.py` | Credits used this month against the Starter plan's $30, per app (Loomcore's runtime, FarmSaathi's voice). The meter runs on Modal every 6 hours and pushes to `/internal/modal`: Modal has no HTTP billing API, and checking a runtime directly would wake it and spend credits |
 | ntfy.sh | `NTFY_TOPIC` | Alerts pushed to your phone |
 
 Usage is read every 6 hours by the cron (reading wakes both Neon databases) or on demand with **Refresh usage**. Alerts are re-evaluated every 5 minutes. They fire when a watched line fails two checks in a row, or when a meter reaches 70% (warning) or 90% (critical). Each alert resolves on its own when the problem clears.
