@@ -24,7 +24,7 @@
       ]
     },
     {
-      "source": "/resume",
+      "source": "/resume{/}?",
       "headers": [
         {
           "key": "Content-Disposition",
