@@ -23,6 +23,8 @@ export const FREE = {
   neonComputeHoursMonth: 100, // CU-hours per project
   workersAiNeuronsDay: 10_000, // whole account, resets 00:00 UTC
   modalCreditsMonth: 30, // Starter plan, US dollars; no card on file, so usage stops there
+  durableObjectRequestsDay: 100_000, // whole account, resets 00:00 UTC; WebSocket messages count 20 to 1
+  durableObjectBytes: 5 * 1024 ** 3, // SQLite-backed Durable Objects, whole account
 }
 
 export const REFRESH_MS = 6 * 3_600_000
@@ -111,6 +113,19 @@ const FARMSAATHI_PROVIDERS: Record<string, string> = {
   'groq-stt': 'Recordings heard by Whisper on Groq',
 }
 
+/** What the Word Race Worker (games.amittal.dev) reports at /internal/stats. */
+interface GamesStats {
+  dbBytes: number
+  roomsTotal: number
+  gamesTotal: number
+  rooms24h: number
+  liveRooms: number
+  players24h: number
+  players30d: number
+  today: { rooms: number; games: number; finished: number; guesses: number; solved: number; newPlayers: number }
+  modes: Record<string, number>
+}
+
 interface FarmSaathiStats {
   users: number
   chats: number
@@ -123,7 +138,7 @@ interface FarmSaathiStats {
 type Fetch = typeof fetch
 
 /** Calls a project Worker's private route through its service binding. */
-export async function callInternal(env: Bindings, name: 'EDUSCHED' | 'OPENINGOS' | 'SAFESPACE' | 'FARMSAATHI', path: string, method = 'GET'): Promise<Record<string, number>> {
+export async function callInternal(env: Bindings, name: 'EDUSCHED' | 'OPENINGOS' | 'SAFESPACE' | 'FARMSAATHI' | 'GAMES', path: string, method = 'GET'): Promise<Record<string, number>> {
   const target = env[name]
   if (!target) throw new Error(`the ${name} service binding is not configured`)
   if (!env.INTERNAL_KEY) throw new Error('INTERNAL_KEY is not set')
@@ -141,11 +156,12 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
   await Promise.all([
     // Project Workers, over service bindings.
     (async () => {
-      const [edu, os, ss, fs] = await Promise.allSettled([
+      const [edu, os, ss, fs, gm] = await Promise.allSettled([
         callInternal(env, 'EDUSCHED', '/internal/stats'),
         callInternal(env, 'OPENINGOS', '/internal/stats'),
         callInternal(env, 'SAFESPACE', '/internal/stats'),
         callInternal(env, 'FARMSAATHI', '/internal/stats'),
+        callInternal(env, 'GAMES', '/internal/stats'),
       ])
       const errors: string[] = []
       if (edu.status === 'fulfilled') {
@@ -177,12 +193,19 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
             detail: 'Daily cap set in the FarmSaathi Worker; past it the next provider answers' })
         }
       } else errors.push('FarmSaathi: ' + message(fs.reason))
+      if (gm.status === 'fulfilled') {
+        const g = gm.value as unknown as GamesStats
+        out.projects.games = gm.value
+        meter({ id: 'do-games', group: 'Word Race', label: 'Word Race stored counts', used: g.dbBytes, limit: FREE.durableObjectBytes, unit: 'bytes', period: 'now',
+          detail: `${g.gamesTotal} games in ${g.roomsTotal} rooms so far · rooms delete themselves a day after their last game` })
+      } else errors.push('Word Race: ' + message(gm.reason))
+      if (gm.status === 'rejected') out.projects.games = { error: message(gm.reason) }
       if (ss.status === 'rejected') out.projects.safespace = { error: message(ss.reason) }
       if (fs.status === 'rejected') out.projects.farmsaathi = { error: message(fs.reason) }
       if (edu.status === 'rejected') out.projects.edusched = { error: message(edu.reason) }
       if (os.status === 'rejected') out.projects.openingos = { error: message(os.reason) }
       out.connections.push({ id: 'bindings', label: 'Project Workers', state: errors.length ? 'error' : 'connected',
-        detail: errors.length ? errors.join('; ') : 'EduSched, OpeningOS, SafeSpace and FarmSaathi report through service bindings' })
+        detail: errors.length ? errors.join('; ') : 'EduSched, OpeningOS, SafeSpace, FarmSaathi and Word Race report through service bindings' })
     })(),
 
     // This Worker's own D1 database.
@@ -250,7 +273,8 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
         })
         const body = (await res.json()) as { data?: { viewer: { accounts: { ai?: { sum: { totalNeurons: number }; dimensions: { modelId: string } }[] }[] } } }
         const rows = body.data?.viewer.accounts[0]?.ai
-        if (!res.ok || !rows) return
+        // A throw, not a return: the Durable Object query below still has to run.
+        if (!res.ok || !rows) throw new Error('no Workers AI data')
         const byModel = new Map<string, number>()
         for (const r of rows) {
           const name = r.dimensions.modelId.split('/').pop() ?? r.dimensions.modelId
@@ -261,6 +285,28 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
           detail: [...byModel].sort((a, b) => b[1] - a[1]).map(([m, n]) => `${m} ${Math.round(n).toLocaleString('en')}`).join(' · ') || 'No inference yet today' })
       } catch {
         // No meter: the Worker-request meters above still stand.
+      }
+      // Durable Objects (Word Race's rooms), also asked separately.
+      try {
+        const day = new Date(now).toISOString().slice(0, 10)
+        const res = await f('https://api.cloudflare.com/client/v4/graphql', {
+          method: 'POST',
+          headers: { authorization: `Bearer ${env.CF_API_TOKEN}`, 'content-type': 'application/json' },
+          body: JSON.stringify({
+            query: `query ($acct: String!, $day: Date!) { viewer { accounts(filter: { accountTag: $acct }) {
+              objects: durableObjectsInvocationsAdaptiveGroups(limit: 50, filter: { date_geq: $day }) { sum { requests } dimensions { scriptName } }
+            } } }`,
+            variables: { acct: env.CF_ACCOUNT_ID, day },
+          }),
+        })
+        const body = (await res.json()) as { data?: { viewer: { accounts: { objects?: { sum: { requests: number }; dimensions: { scriptName: string } }[] }[] } } }
+        const rows = body.data?.viewer.accounts[0]?.objects
+        if (!res.ok || !rows) return
+        const used = rows.reduce((a, r) => a + r.sum.requests, 0)
+        meter({ id: 'durable-object-requests', group: 'Cloudflare', label: 'Durable Object requests today', used, limit: FREE.durableObjectRequestsDay, unit: 'count', period: 'today',
+          detail: rows.map(r => `${r.dimensions.scriptName} ${r.sum.requests.toLocaleString('en')}`).join(' · ') || 'No requests yet today' })
+      } catch {
+        // No meter.
       }
     })(),
 

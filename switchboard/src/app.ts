@@ -21,6 +21,8 @@ export interface Bindings {
   /** Service binding to the SafeSpace vault Worker (admin stats only). */
   SAFESPACE?: Fetcher
   FARMSAATHI?: Fetcher
+  /** Service binding to the Word Race Worker at games.amittal.dev (admin stats only). */
+  GAMES?: Fetcher
   /** Comma-separated ids of the services that are deployed and should be checked. The admin can override it (settings.live). */
   LIVE?: string
   /** The admin dashboard's static files (admin-ui/dist). */

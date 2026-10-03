@@ -67,13 +67,16 @@ export function Resources({ data, now, busy, onRefresh }: { data: Snapshot | nul
   }
 
   const groups = [...new Set(data.meters.map(m => m.group))]
-  const edu = data.projects.edusched, os = data.projects.openingos, ss = data.projects.safespace, fs = data.projects.farmsaathi
+  const edu = data.projects.edusched, os = data.projects.openingos, ss = data.projects.safespace, fs = data.projects.farmsaathi, gm = data.projects.games
   const ok = (p: unknown): p is Record<string, number> => !!p && !('error' in (p as object))
   // FarmSaathi also reports nested counters: today's use, refusals and dropped recordings.
   const fx = (ok(fs) ? fs : {}) as unknown as { today?: Record<string, number>; guard?: Record<string, number>; stt?: Record<string, number> }
   // guard:nolabel counts answers that came back without a verdict line; those were still answered.
   const refused = (o: Record<string, number> | undefined) => Object.entries(o ?? {}).reduce((a, [k, n]) => (k === 'nolabel' ? a : a + n), 0)
   const modal = data.modal?.apps ?? null
+  // Word Race reports today's counts and games per mode as nested objects.
+  const gx = (ok(gm) ? gm : {}) as unknown as { today?: Record<string, number>; modes?: Record<string, number> }
+  const modes = Object.entries(gx.modes ?? {}).sort((a, b) => b[1] - a[1]).map(([m, n]) => `${m} ${n}`).join(' · ')
 
   return (
     <div class="resources stack">
@@ -116,11 +119,21 @@ export function Resources({ data, now, busy, onRefresh }: { data: Snapshot | nul
               <dt>Recordings dropped as loops today</dt><dd>{num(fx.stt?.unusable ?? 0)}</dd>
               {modal?.['farmsaathi-voice'] !== undefined && <><dt>Voice on Modal this month</dt><dd>${modal['farmsaathi-voice'].toFixed(2)}</dd></>}
             </>}
+            {ok(gm) && <>
+              <dt>Word Race games running now</dt><dd>{num(gm.liveRooms)}</dd>
+              <dt>Word Race games today</dt><dd>{num(gx.today?.games ?? 0)} started · {num(gx.today?.finished ?? 0)} finished</dd>
+              <dt>Guesses today</dt><dd>{num(gx.today?.guesses ?? 0)} · {num(gx.today?.solved ?? 0)} words solved</dd>
+              <dt>Players</dt><dd>{num(gm.players24h)} in 24 h · {num(gm.players30d)} in 30 days · {num(gx.today?.newPlayers ?? 0)} new today</dd>
+              <dt>Rooms used in 24 h</dt><dd>{num(gm.rooms24h)}</dd>
+              <dt>Games so far</dt><dd>{num(gm.gamesTotal)}{gm.avgPlayers ? ` · ${gm.avgPlayers} players a game` : ''}</dd>
+              {modes && <><dt>Games by mode</dt><dd>{modes}</dd></>}
+            </>}
             {modal?.loomcore !== undefined && <><dt>Loomcore runtime on Modal this month</dt><dd>${modal.loomcore.toFixed(2)}</dd></>}
             {!ok(edu) && <><dt>EduSched</dt><dd class="is-err">{edu?.error ?? 'not read'}</dd></>}
             {!ok(os) && <><dt>OpeningOS</dt><dd class="is-err">{os?.error ?? 'not read'}</dd></>}
             {!ok(ss) && <><dt>SafeSpace</dt><dd class="is-err">{ss?.error ?? 'not read'}</dd></>}
             {!ok(fs) && <><dt>FarmSaathi</dt><dd class="is-err">{fs?.error ?? 'not read'}</dd></>}
+            {!ok(gm) && <><dt>Word Race</dt><dd class="is-err">{gm?.error ?? 'not read'}</dd></>}
           </dl>
         </Panel>
 

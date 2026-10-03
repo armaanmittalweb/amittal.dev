@@ -53,6 +53,7 @@ function setup(extra: Partial<Bindings> = {}) {
     OPENINGOS: fakeWorker({ snapshots: 12, tableBytes: 90_000, maxTableBytes: 400_000_000, dbBytes: 30 * 1024 ** 2, written24h: 4, active30d: 10 }),
     SAFESPACE: fakeWorker({ users: 4, records: 31, dbBytes: 61_440, sessions: 5 }),
     FARMSAATHI: fakeWorker({ users: 2, chats: 7, dbBytes: 81_920 }),
+    GAMES: fakeWorker({ dbBytes: 45_056, roomsTotal: 3, gamesTotal: 3, rooms24h: 3, liveRooms: 1, players24h: 6, players30d: 6 }),
     ASSETS: { fetch: async () => new Response('<!doctype html><title>Switchboard</title>', { headers: { 'content-type': 'text/html' } }) } as unknown as Fetcher,
     ...extra,
   } as Bindings
@@ -171,6 +172,18 @@ describe('resources', () => {
     const res = await collectResources(s.env, s.sql, T0, s.deps.fetch)
     const fs = res.meters.filter(m => m.group === 'FarmSaathi').map(m => [m.id, m.used, m.limit])
     expect(fs).toEqual([['farmsaathi-workers-ai', 42, 300], ['farmsaathi-workers-ai-stt', 0, 300], ['farmsaathi-indic-stt', 5, 2000]])
+  })
+
+  it('reads Word Race through its binding, and Durable Object requests from Cloudflare', async () => {
+    const s = setup({ CF_API_TOKEN: 't', CF_ACCOUNT_ID: 'acct' })
+    const f = (async (_url: string, init: RequestInit) => {
+      const objects = String(init.body).includes('durableObjectsInvocationsAdaptiveGroups')
+      return Response.json({ data: { viewer: { accounts: [objects ? { objects: [{ sum: { requests: 1610 }, dimensions: { scriptName: 'games' } }] } : { workers: [], d1: [] }] } } })
+    }) as unknown as typeof fetch
+    const res = await collectResources(s.env, s.sql, T0, f)
+    expect(res.projects.games).toMatchObject({ gamesTotal: 3, liveRooms: 1 })
+    expect(res.meters.find(m => m.id === 'do-games')).toMatchObject({ group: 'Word Race', used: 45_056, limit: 5 * 1024 ** 3 })
+    expect(res.meters.find(m => m.id === 'durable-object-requests')).toMatchObject({ used: 1610, limit: 100_000, detail: 'games 1,610' })
   })
 
   it('reads Workers AI neurons in a request of their own', async () => {

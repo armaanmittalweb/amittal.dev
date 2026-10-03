@@ -44,9 +44,9 @@ Changing the password also rotates the session secret, which signs every device 
 
 | Source | Needs | Gives |
 |---|---|---|
-| Project Workers' `/internal/stats` | `INTERNAL_KEY` (the same secret on every project Worker) | Database sizes, synced phrases, departments, class changes, demo copies; FarmSaathi's answers, transcriptions and read-aloud clips today, each AI provider against its daily cap, refused off-topic questions and dropped looping transcripts; runs the cleanup levers |
+| Project Workers' `/internal/stats` | `INTERNAL_KEY` (the same secret on every project Worker) | Database sizes, synced phrases, departments, class changes, demo copies; FarmSaathi's answers, transcriptions and read-aloud clips today, each AI provider against its daily cap, refused off-topic questions and dropped looping transcripts; Word Race's games running now, games, guesses and players today, games by mode (from its Stats Durable Object); runs the cleanup levers |
 | This Worker's D1 | nothing | Uptime log, traffic, D1 size |
-| Cloudflare GraphQL analytics | `CF_API_TOKEN` (Account Analytics: Read) | Worker requests today against 100k, D1 rows read and written, Workers AI neurons today against 10k (per model) |
+| Cloudflare GraphQL analytics | `CF_API_TOKEN` (Account Analytics: Read) | Worker requests today against 100k, D1 rows read and written, Workers AI neurons today against 10k (per model), Durable Object requests today against 100k (per Worker) |
 | Neon API | `NEON_API_KEY` | Compute hours this month per project |
 | Vercel API | `VERCEL_TOKEN` | Latest production deploy per site, one-click redeploys |
 | Modal billing, via `modal/meter.py` | Modal secret `switchboard` holding `INTERNAL_KEY`; `modal deploy modal/meter.py` | Credits used this month against the Starter plan's $30, per app (Loomcore's runtime, FarmSaathi's voice). The meter runs on Modal every 6 hours and pushes to `/internal/modal`: Modal has no HTTP billing API, and checking a runtime directly would wake it and spend credits |

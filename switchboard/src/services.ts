@@ -25,6 +25,8 @@ export const SERVICES: Service[] = [
   { id: 'openingos', name: 'OpeningOS', hosts: ['Vercel', 'Workers', 'Neon'], check: { url: 'https://openingos.amittal.dev/' }, origin: 'https://openingos.amittal.dev' },
   { id: 'loomcore', name: 'Loomcore', hosts: ['Vercel', 'Workers', 'Modal'], check: { url: 'https://loomcore.amittal.dev/' }, origin: 'https://loomcore.amittal.dev' },
   { id: 'farmsaathi', name: 'FarmSaathi', hosts: ['Vercel', 'Workers', 'D1', 'Modal'], check: { url: 'https://farmsaathi.amittal.dev/' }, origin: 'https://farmsaathi.amittal.dev' },
+  // The page is a static asset, so the check never wakes a room.
+  { id: 'games', name: 'Word Race', hosts: ['Workers', 'Durable Objects'], check: { url: 'https://games.amittal.dev/' }, origin: 'https://games.amittal.dev' },
 ]
 
 export const liveIds = (live: string | undefined) => new Set((live ?? '').split(',').map(s => s.trim()).filter(Boolean))

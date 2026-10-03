@@ -15,7 +15,7 @@
   "build": { "command": "npm run build:ui" },
   "vars": {
     // Checked services when the admin has not changed the list (settings.live in D1).
-    "LIVE": "archive,edusched,safespace,openingos,farmsaathi,loomcore",
+    "LIVE": "archive,edusched,safespace,openingos,farmsaathi,loomcore,games",
     "ADMIN_HOST": "admin.amittal.dev",
     "CF_ACCOUNT_ID": "97aa1d30eb49a5168de748e049a18f5d",
     "NEON_PROJECTS": "edusched:solitary-river-84073411,openingos:autumn-dust-23522001",
@@ -29,7 +29,8 @@
     { "binding": "EDUSCHED", "service": "edusched-api" },
     { "binding": "OPENINGOS", "service": "openingos-sync" },
     { "binding": "SAFESPACE", "service": "safespace-api" },
-    { "binding": "FARMSAATHI", "service": "farmsaathi-api" }
+    { "binding": "FARMSAATHI", "service": "farmsaathi-api" },
+    { "binding": "GAMES", "service": "games" }
   ],
   "ratelimits": [
     { "name": "HIT_LIMITER", "namespace_id": "4201", "simple": { "limit": 120, "period": 60 } },
