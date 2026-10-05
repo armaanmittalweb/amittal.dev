@@ -335,3 +335,44 @@ kbd { font-size: 9px; color: var(--dim); border: 1px solid var(--line-2); border
   .gauge-fill, .switch, .switch-knob { transition: none }
   .toast { animation: none }
 }
+
+/* Game Night */
+.gn .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center }
+.gn-live { display: inline-flex; gap: 8px; align-items: center; font: 12px var(--f-mono); color: var(--muted); margin-left: auto }
+.gn-sub { margin: 18px 0 8px }
+.m-rows { display: flex; flex-direction: column; margin: 0 }
+.m-row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-top: 1px dashed var(--line) }
+.m-row:first-child { border-top: 0; padding-top: 0 }
+.m-row dt { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.m-label { font-size: 14.5px }
+.m-def { font: 10.5px/1.45 var(--f-mono); color: var(--dim); display: block }
+.m-row dd { margin: 0; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none }
+.m-val { font: 500 19px var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink) }
+.m-base { font: 10.5px var(--f-mono); color: var(--muted); white-space: nowrap }
+.funnel { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none }
+.funnel li { position: relative; display: flex; justify-content: space-between; align-items: center; padding: 11px 12px; min-height: 42px }
+.funnel-bar { position: absolute; inset: 0 auto 0 0; background: var(--accent-soft); border-left: 2px solid var(--accent); border-radius: 0 3px 3px 0 }
+.funnel-label { position: relative; font-size: 14.5px }
+.funnel-n { position: relative; font: 500 16px var(--f-mono); display: flex; gap: 10px; align-items: baseline }
+.funnel-n small { font-size: 11px; color: var(--muted) }
+.rets { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-bottom: 12px }
+.ret { background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; gap: 5px }
+.ret-val { font: 500 30px var(--f-mono); line-height: 1.05; color: var(--accent) }
+.hours { position: relative; display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; align-items: end; height: 84px; padding-bottom: 18px }
+.hours > span { height: 100%; display: flex; align-items: flex-end; background: var(--grid) }
+.hours i { display: block; width: 100%; background: var(--accent); border-radius: 1px 1px 0 0 }
+.hours-axis { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; font: 10px var(--f-mono); color: var(--dim) }
+.stars-dist { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px }
+.stars-dist li { display: grid; grid-template-columns: 34px 1fr 32px; gap: 10px; align-items: center; font: 12px var(--f-mono) }
+.stars-dist b { text-align: right; font-weight: 500 }
+.sd-track { height: 8px; background: var(--grid); border-radius: 2px; overflow: hidden }
+.sd-track i { display: block; height: 100%; background: var(--accent) }
+.texts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px }
+.texts li { display: flex; gap: 10px; align-items: baseline }
+.texts-n { font: 500 12px var(--f-mono); color: var(--accent); min-width: 26px }
+.texts-body { font-size: 14px; min-width: 0; overflow-wrap: anywhere }
+.table-wrap { overflow-x: auto }
+.gn-table { width: 100%; border-collapse: collapse; font-size: 14px }
+.gn-table th { font: 10px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 0 10px 10px; white-space: nowrap; font-weight: 400 }
+.gn-table td { text-align: right; padding: 9px 10px; border-top: 1px solid var(--line); font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap }
+.gn-table th:first-child, .gn-table td:first-child { text-align: left; font-family: inherit; padding-left: 0 }

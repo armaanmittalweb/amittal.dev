@@ -113,7 +113,7 @@ const FARMSAATHI_PROVIDERS: Record<string, string> = {
   'groq-stt': 'Recordings heard by Whisper on Groq',
 }
 
-/** What the Word Race Worker (games.amittal.dev) reports at /internal/stats. */
+/** What the Game Night Worker (games.amittal.dev) reports at /internal/stats. */
 interface GamesStats {
   dbBytes: number
   roomsTotal: number
@@ -196,16 +196,16 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
       if (gm.status === 'fulfilled') {
         const g = gm.value as unknown as GamesStats
         out.projects.games = gm.value
-        meter({ id: 'do-games', group: 'Word Race', label: 'Word Race stored counts', used: g.dbBytes, limit: FREE.durableObjectBytes, unit: 'bytes', period: 'now',
+        meter({ id: 'do-games', group: 'Game Night', label: 'Game Night stored counts', used: g.dbBytes, limit: FREE.durableObjectBytes, unit: 'bytes', period: 'now',
           detail: `${g.gamesTotal} games in ${g.roomsTotal} rooms so far · rooms delete themselves a day after their last game` })
-      } else errors.push('Word Race: ' + message(gm.reason))
+      } else errors.push('Game Night: ' + message(gm.reason))
       if (gm.status === 'rejected') out.projects.games = { error: message(gm.reason) }
       if (ss.status === 'rejected') out.projects.safespace = { error: message(ss.reason) }
       if (fs.status === 'rejected') out.projects.farmsaathi = { error: message(fs.reason) }
       if (edu.status === 'rejected') out.projects.edusched = { error: message(edu.reason) }
       if (os.status === 'rejected') out.projects.openingos = { error: message(os.reason) }
       out.connections.push({ id: 'bindings', label: 'Project Workers', state: errors.length ? 'error' : 'connected',
-        detail: errors.length ? errors.join('; ') : 'EduSched, OpeningOS, SafeSpace, FarmSaathi and Word Race report through service bindings' })
+        detail: errors.length ? errors.join('; ') : 'EduSched, OpeningOS, SafeSpace, FarmSaathi and Game Night report through service bindings' })
     })(),
 
     // This Worker's own D1 database.
@@ -286,7 +286,7 @@ export async function collectResources(env: Bindings, sql: Sql, now: number, f: 
       } catch {
         // No meter: the Worker-request meters above still stand.
       }
-      // Durable Objects (Word Race's rooms), also asked separately.
+      // Durable Objects (Game Night's rooms), also asked separately.
       try {
         const day = new Date(now).toISOString().slice(0, 10)
         const res = await f('https://api.cloudflare.com/client/v4/graphql', {

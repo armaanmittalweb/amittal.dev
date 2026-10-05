@@ -163,6 +163,16 @@ export function createAdmin(deps: AdminDeps) {
 
   app.get('/api/alerts', async c => c.json(await listAlerts(deps.sql(c.env))))
 
+  // The Game Night page: games.amittal.dev's product numbers, worked out live by its Stats object (src/analytics.ts there).
+  app.get('/api/games', async c => {
+    const days = Math.max(0, Math.min(365, Math.floor(Number(c.req.query('days') ?? 30)) || 0))
+    try {
+      return c.json(await callInternal(c.env, 'GAMES', `/internal/analytics?days=${days}`))
+    } catch (e) {
+      return c.json({ error: `Could not read Game Night: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
+    }
+  })
+
   app.post('/api/actions/:name', async c => {
     const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
     const env = c.env, t = now()

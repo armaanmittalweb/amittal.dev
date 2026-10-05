@@ -174,7 +174,20 @@ describe('resources', () => {
     expect(fs).toEqual([['farmsaathi-workers-ai', 42, 300], ['farmsaathi-workers-ai-stt', 0, 300], ['farmsaathi-indic-stt', 5, 2000]])
   })
 
-  it('reads Word Race through its binding, and Durable Object requests from Cloudflare', async () => {
+  it('reads the Game Night page through the binding, signed in only', async () => {
+    const calls: string[] = []
+    const s = setup({ GAMES: fakeWorker({}, calls) })
+    expect((await s.admin.request('/api/games?days=7', {}, s.env)).status).toBe(401)
+    const cookie = await login(s)
+    expect((await s.admin.request('/api/games?days=7', { headers: { cookie } }, s.env)).status).toBe(200)
+    expect((await s.admin.request('/api/games?days=9999', { headers: { cookie } }, s.env)).status).toBe(200)
+    expect(calls).toEqual(['GET /internal/analytics', 'GET /internal/analytics'])
+    const down = setup({ GAMES: undefined })
+    const res = await down.admin.request('/api/games', { headers: { cookie: await login(down) } }, down.env)
+    expect(res.status).toBe(502)
+  })
+
+  it('reads Game Night through its binding, and Durable Object requests from Cloudflare', async () => {
     const s = setup({ CF_API_TOKEN: 't', CF_ACCOUNT_ID: 'acct' })
     const f = (async (_url: string, init: RequestInit) => {
       const objects = String(init.body).includes('durableObjectsInvocationsAdaptiveGroups')
@@ -182,7 +195,7 @@ describe('resources', () => {
     }) as unknown as typeof fetch
     const res = await collectResources(s.env, s.sql, T0, f)
     expect(res.projects.games).toMatchObject({ gamesTotal: 3, liveRooms: 1 })
-    expect(res.meters.find(m => m.id === 'do-games')).toMatchObject({ group: 'Word Race', used: 45_056, limit: 5 * 1024 ** 3 })
+    expect(res.meters.find(m => m.id === 'do-games')).toMatchObject({ group: 'Game Night', used: 45_056, limit: 5 * 1024 ** 3 })
     expect(res.meters.find(m => m.id === 'durable-object-requests')).toMatchObject({ used: 1610, limit: 100_000, detail: 'games 1,610' })
   })
 

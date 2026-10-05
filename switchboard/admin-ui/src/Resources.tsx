@@ -74,7 +74,7 @@ export function Resources({ data, now, busy, onRefresh }: { data: Snapshot | nul
   // guard:nolabel counts answers that came back without a verdict line; those were still answered.
   const refused = (o: Record<string, number> | undefined) => Object.entries(o ?? {}).reduce((a, [k, n]) => (k === 'nolabel' ? a : a + n), 0)
   const modal = data.modal?.apps ?? null
-  // Word Race reports today's counts and games per mode as nested objects.
+  // Game Night reports today's counts and games per mode as nested objects.
   const gx = (ok(gm) ? gm : {}) as unknown as { today?: Record<string, number>; modes?: Record<string, number> }
   const modes = Object.entries(gx.modes ?? {}).sort((a, b) => b[1] - a[1]).map(([m, n]) => `${m} ${n}`).join(' · ')
 
@@ -120,8 +120,8 @@ export function Resources({ data, now, busy, onRefresh }: { data: Snapshot | nul
               {modal?.['farmsaathi-voice'] !== undefined && <><dt>Voice on Modal this month</dt><dd>${modal['farmsaathi-voice'].toFixed(2)}</dd></>}
             </>}
             {ok(gm) && <>
-              <dt>Word Race games running now</dt><dd>{num(gm.liveRooms)}</dd>
-              <dt>Word Race games today</dt><dd>{num(gx.today?.games ?? 0)} started · {num(gx.today?.finished ?? 0)} finished</dd>
+              <dt>Game Night games running now</dt><dd>{num(gm.liveRooms)}</dd>
+              <dt>Game Night games today</dt><dd>{num(gx.today?.games ?? 0)} started · {num(gx.today?.finished ?? 0)} finished</dd>
               <dt>Guesses today</dt><dd>{num(gx.today?.guesses ?? 0)} · {num(gx.today?.solved ?? 0)} words solved</dd>
               <dt>Players</dt><dd>{num(gm.players24h)} in 24 h · {num(gm.players30d)} in 30 days · {num(gx.today?.newPlayers ?? 0)} new today</dd>
               <dt>Rooms used in 24 h</dt><dd>{num(gm.rooms24h)}</dd>
@@ -133,7 +133,7 @@ export function Resources({ data, now, busy, onRefresh }: { data: Snapshot | nul
             {!ok(os) && <><dt>OpeningOS</dt><dd class="is-err">{os?.error ?? 'not read'}</dd></>}
             {!ok(ss) && <><dt>SafeSpace</dt><dd class="is-err">{ss?.error ?? 'not read'}</dd></>}
             {!ok(fs) && <><dt>FarmSaathi</dt><dd class="is-err">{fs?.error ?? 'not read'}</dd></>}
-            {!ok(gm) && <><dt>Word Race</dt><dd class="is-err">{gm?.error ?? 'not read'}</dd></>}
+            {!ok(gm) && <><dt>Game Night</dt><dd class="is-err">{gm?.error ?? 'not read'}</dd></>}
           </dl>
         </Panel>
 

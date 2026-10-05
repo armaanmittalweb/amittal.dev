@@ -65,6 +65,40 @@ export interface Traffic {
   devices: Count[]
 }
 
+// Game Night (games.amittal.dev): the shape of /internal/analytics there (src/analytics.ts in the games repo).
+export type Ratio = number | null
+export interface Retention { n: number; back: number; pct: Ratio; within: Ratio }
+export interface Text { text: string; n: number; last: number; game: string }
+export interface GameRow { id: string; started: number; done: number; completion: Ratio; avgPlayers: number; medianMin: number; replay: Ratio; rating: number | null; ratings: number; again: Ratio }
+export interface GamesReport {
+  now: number; today: string; since: string; from: string; days: number; tz: string
+  names: Record<string, string>
+  live: { games: number; players: number }
+  acquisition: {
+    dau: number; wau: number; mau: number; dauPlayers: number; wauPlayers: number; mauPlayers: number; avgDau: number; avgDauPlayers: number
+    visitors: number; newVisitors: number; sessions: number; viewsPerSession: number | null
+    sources: (Count & { played: number })[]; referrers: Count[]; landings: Count[]; countries: Count[]; devices: Count[]
+  }
+  funnel: { newVisitors: number; played: number; twoRooms: number; returned: number }
+  activation: { created: number; started: number; rate: Ratio; avgPlayers: number | null; medianPlayers: number; avgSeats: number | null; sizes: Count[] }
+  engagement: {
+    games: number; done: number; gamesPerRoom: number | null; medianGamesPerNight: number; medianNightMin: number; avgNightMin: number | null
+    completed: Ratio; second: Ratio; third: Ratio; nightPlanner: Ratio; medianGameMin: number; playerHours: number
+    rulesSkipped: Ratio; medianRulesSec: number; peakPlayers: number; peakAt: number | null; hours: number[]; byGame: GameRow[]; multiRoom: Ratio
+  }
+  retention: { d1: Retention; d7: Retention; d14: Retention; d30: Retention; cohort: number }
+  virality: {
+    shares: number; sharesNative: number; inviteOpens: number; newFromInvites: number; newFromInvitesPlayed: number; shareOfNew: Ratio
+    playersPerRoom: number | null; roomsByReferred: number; roomsStarted: number; perHost: number | null
+  }
+  quality: {
+    completion: Ratio; aborted: Ratio; unfinished: Ratio; dropRate: Ratio; dropped: number; seats: number; reconnect: Ratio; rejoined: number
+    errorSessions: Ratio; errorGames: Ratio; actions: number; serverErrors: number; topErrors: Count[]
+  }
+  feedback: { responses: number; ratings: number; avgRating: number | null; stars: number[]; againVotes: number; again: Ratio; complaints: Text[]; ideas: Text[] }
+  series: { day: string; visitors: number; players: number; newVisitors: number; rooms: number; games: number }[]
+}
+
 /** The session ended (or never started): the app shows the sign-in screen. */
 export class SignedOut extends Error {}
 
@@ -85,6 +119,7 @@ export const api = {
   overview: () => call<Overview>('/api/overview'),
   traffic: (site: string | null, days: number) => call<Traffic>(`/api/traffic?days=${days}${site ? `&site=${site}` : ''}`),
   resources: (fresh = false) => call<Resources | null>('/api/resources' + (fresh ? '?fresh=1' : '')),
+  games: (days: number) => call<GamesReport>(`/api/games?days=${days}`),
   alerts: () => call<Alert[]>('/api/alerts'),
   action: (name: string, body: Record<string, unknown> = {}) => post<{ ok: true; message: string }>(`/api/actions/${name}`, body),
 }

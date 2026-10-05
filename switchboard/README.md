@@ -26,6 +26,7 @@ Health checks never touch a database. A Neon compute queried every 5 minutes wou
 |---|---|
 | **Board** | Every line with its lamp, round trip, 30-day uptime strip and today's views; open alerts; this week's traffic; the four fullest free-tier meters; latest deploys. |
 | **Traffic** | Views and visitors per day (7, 30 or 90 days) for all sites or one, top pages, referring sites, countries and devices. |
+| **Game Night** | games.amittal.dev's product numbers, worked out live by that site (`GET /api/games?days=` → its `/internal/analytics`): DAU/WAU/MAU, traffic sources and the new-visitor funnel; rooms created and started, players per room; games per night, night length, completion, 2nd and 3rd game; D1/D7/D14/D30 return; invites; disconnects, reconnects and errors; ratings, complaints and requested games; a table per game. Each row says exactly what it counts. |
 | **Resources** | Free-tier meters with 70% and 90% marks, grouped by provider; numbers from inside each project; which data sources are connected, with setup steps for the rest. |
 | **Controls** | Levers (check now, read usage, clean up EduSched, prune OpeningOS sync, test alert); which lines are watched (no deploy needed); redeploys; alert history. |
 
@@ -44,7 +45,7 @@ Changing the password also rotates the session secret, which signs every device 
 
 | Source | Needs | Gives |
 |---|---|---|
-| Project Workers' `/internal/stats` | `INTERNAL_KEY` (the same secret on every project Worker) | Database sizes, synced phrases, departments, class changes, demo copies; FarmSaathi's answers, transcriptions and read-aloud clips today, each AI provider against its daily cap, refused off-topic questions and dropped looping transcripts; Word Race's games running now, games, guesses and players today, games by mode (from its Stats Durable Object); runs the cleanup levers |
+| Project Workers' `/internal/stats` | `INTERNAL_KEY` (the same secret on every project Worker) | Database sizes, synced phrases, departments, class changes, demo copies; FarmSaathi's answers, transcriptions and read-aloud clips today, each AI provider against its daily cap, refused off-topic questions and dropped looping transcripts; Game Night's games running now, games, guesses and players today, games by mode (from its Stats Durable Object); runs the cleanup levers |
 | This Worker's D1 | nothing | Uptime log, traffic, D1 size |
 | Cloudflare GraphQL analytics | `CF_API_TOKEN` (Account Analytics: Read) | Worker requests today against 100k, D1 rows read and written, Workers AI neurons today against 10k (per model), Durable Object requests today against 100k (per Worker) |
 | Neon API | `NEON_API_KEY` | Compute hours this month per project |
