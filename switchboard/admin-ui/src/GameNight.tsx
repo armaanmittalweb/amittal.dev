@@ -149,6 +149,11 @@ export function GameNight({ onSignedOut }: { onSignedOut: () => void }) {
     })
     return () => { stale = true }
   }, [days, tick, onSignedOut])
+  // The live numbers stay current while the page is open and in view.
+  useEffect(() => {
+    const t = setInterval(() => { if (document.visibilityState === 'visible') setTick(n => n + 1) }, 30_000)
+    return () => clearInterval(t)
+  }, [])
 
   const range = [{ value: 7, label: '7 days' }, { value: 30, label: '30 days' }, { value: 90, label: '90 days' }, { value: 0, label: 'All time' }]
   if (!data) {
@@ -163,17 +168,21 @@ export function GameNight({ onSignedOut }: { onSignedOut: () => void }) {
   const { acquisition: a, activation: act, engagement: e, retention: r, virality: v, quality: q, feedback: f, funnel } = data
   const period = data.days ? `last ${data.days} days` : 'since tracking began'
   const name = (id: string) => data.names[id] ?? id
+  const live = { online: 0, rooms: 0, playing: 0, waiting: 0, ...data.live }
+  const plural = (n: number, one: string) => `${num(n)} ${one}${n === 1 ? '' : 's'}`
 
   return (
     <div class="gn stack">
       <div class="toolbar">
         <Segmented label="Range" value={days} options={range} onChange={setDays} />
-        <span class="gn-live"><span class={`lamp ${data.live.games ? 'lamp-up' : 'lamp-idle'}`} />{data.live.games ? `${num(data.live.games)} game${data.live.games > 1 ? 's' : ''} on now · ${num(data.live.players)} players` : 'No games on right now'}</span>
+        <span class="gn-live"><span class={`lamp ${live.online ? 'lamp-up' : 'lamp-idle'}`} />Live numbers update every 30 s</span>
         <button type="button" class="link-btn" onClick={() => setTick(t => t + 1)}>Refresh</button>
       </div>
       {error && <p class="notice is-err" role="alert">{error}</p>}
 
       <div class="stats">
+        <Stat label="IN A ROOM · LIVE" value={num(live.online)}
+          sub={live.online ? `${plural(live.rooms, 'room')} open · ${num(live.playing)} playing ${plural(live.games, 'game')} · ${num(live.waiting)} in a lobby` : 'nobody in a room right now'} />
         <Stat label="PLAYERS · 30 DAYS" value={num(a.mauPlayers)} sub={`${num(a.wauPlayers)} this week · ${num(a.dauPlayers)} today`} />
         <Stat label="VISITORS · 30 DAYS" value={num(a.mau)} sub={`${num(a.wau)} this week · ${num(a.dau)} today`} />
         <Stat label="GAMES PLAYED" value={num(e.games)} sub={`${num(act.started)} room${act.started === 1 ? "" : "s"} · ${period}`} />

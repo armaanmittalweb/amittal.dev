@@ -73,7 +73,9 @@ export interface GameRow { id: string; started: number; done: number; completion
 export interface GamesReport {
   now: number; today: string; since: string; from: string; days: number; tz: string
   names: Record<string, string>
-  live: { games: number; players: number }
+  /** Right now. games/players: games under way and their seats; the rest: people connected to a room (online), the
+   * rooms they are in, and how many of them are in a game (playing) or a lobby or results screen (waiting). */
+  live: { games: number; players: number; online?: number; rooms?: number; playing?: number; waiting?: number }
   acquisition: {
     dau: number; wau: number; mau: number; dauPlayers: number; wauPlayers: number; mauPlayers: number; avgDau: number; avgDauPlayers: number
     visitors: number; newVisitors: number; sessions: number; viewsPerSession: number | null
