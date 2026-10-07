@@ -8,6 +8,18 @@ CREATE TABLE IF NOT EXISTS checks (
 );
 CREATE INDEX IF NOT EXISTS checks_at ON checks (at);
 
+-- The same checks added up per service and UTC day as they come in, so the 30-day uptime bars read
+-- one row per service per day instead of every check (D1's free plan allows 5M rows read a day).
+CREATE TABLE IF NOT EXISTS check_days (
+  service TEXT NOT NULL,
+  day     TEXT NOT NULL,              -- YYYY-MM-DD, UTC
+  up      INTEGER NOT NULL DEFAULT 0,
+  total   INTEGER NOT NULL DEFAULT 0,
+  ms_sum  INTEGER NOT NULL DEFAULT 0, -- round trips of the checks that came back
+  ms_n    INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (service, day)
+) WITHOUT ROWID;
+
 -- Page views, counted without cookies or ids. One row per site, UTC day and path.
 CREATE TABLE IF NOT EXISTS views (
   site TEXT NOT NULL,
