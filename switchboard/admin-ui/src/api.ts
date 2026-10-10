@@ -97,7 +97,7 @@ export interface GamesReport {
     completion: Ratio; aborted: Ratio; unfinished: Ratio; dropRate: Ratio; dropped: number; seats: number; reconnect: Ratio; rejoined: number
     errorSessions: Ratio; errorGames: Ratio; actions: number; serverErrors: number; topErrors: Count[]
   }
-  feedback: { responses: number; ratings: number; avgRating: number | null; stars: number[]; againVotes: number; again: Ratio; complaints: Text[]; ideas: Text[] }
+  feedback: { responses: number; ratings: number; avgRating: number | null; stars: number[]; againVotes: number; again: Ratio; complaints: Text[]; ideas: Text[]; reports?: Text[] }
   series: { day: string; visitors: number; players: number; newVisitors: number; rooms: number; games: number }[]
 }
 

@@ -300,6 +300,8 @@ export function GameNight({ onSignedOut }: { onSignedOut: () => void }) {
           <Texts rows={f.complaints} names={data.names} empty="Nothing to fix yet." />
           <div class="kicker gn-sub">TOP REQUESTED GAMES</div>
           <Texts rows={f.ideas} names={data.names} empty="No requests yet." />
+          <div class="kicker gn-sub">REPORTED ON THE CONTACT PAGE</div>
+          <Texts rows={f.reports ?? []} names={data.names} empty="No reports yet." />
         </Panel>
       </div>
 
