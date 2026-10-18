@@ -173,6 +173,18 @@ export function createAdmin(deps: AdminDeps) {
     }
   })
 
+  // Someone asked (through games.amittal.dev/contact) for what is kept under their browser id to be deleted.
+  app.post('/api/games/forget', async c => {
+    const body = (await c.req.json().catch(() => ({}))) as { vid?: unknown }
+    const vid = typeof body.vid === 'string' ? body.vid.trim() : ''
+    if (!/^[a-z0-9]{6,40}$/i.test(vid)) return c.json({ error: 'That is not a browser id (6 to 40 letters and digits, from gn.vid)' }, 400)
+    try {
+      return c.json(await callInternal(c.env, 'GAMES', `/internal/forget?vid=${vid}`, 'POST'))
+    } catch (e) {
+      return c.json({ error: `Could not reach Game Night: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
+    }
+  })
+
   app.post('/api/actions/:name', async c => {
     const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
     const env = c.env, t = now()

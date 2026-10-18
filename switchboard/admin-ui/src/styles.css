@@ -376,3 +376,8 @@ kbd { font-size: 9px; color: var(--dim); border: 1px solid var(--line-2); border
 .gn-table th { font: 10px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 0 10px 10px; white-space: nowrap; font-weight: 400 }
 .gn-table td { text-align: right; padding: 9px 10px; border-top: 1px solid var(--line); font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap }
 .gn-table th:first-child, .gn-table td:first-child { text-align: left; font-family: inherit; padding-left: 0 }
+
+/* Game Night: deleting what is kept under one browser id, on request. */
+.forget { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap }
+.forget label { display: flex; flex-direction: column; gap: 4px; flex: 1 1 220px; font-size: 13px }
+.forget input { font: inherit; padding: 8px 10px }

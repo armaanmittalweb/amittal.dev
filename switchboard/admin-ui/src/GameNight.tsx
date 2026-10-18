@@ -1,6 +1,6 @@
 import type { ComponentChildren } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
-import { api, SignedOut, type GamesReport, type Ratio, type Retention, type Text } from './api'
+import { api, SignedOut, type GamesReport, type Growth, type Rate, type Ratio, type Retention, type Text } from './api'
 import { ago, compact, countryName, num, shortDay, weekday } from './format'
 import { Panel, Ranked, Segmented, Stat } from './ui'
 
@@ -131,6 +131,87 @@ function Texts({ rows, names, empty }: { rows: Text[]; names: Record<string, str
         </li>
       ))}
     </ul>
+  )
+}
+
+const rate = (r: Rate, what = 'back') => (r.n ? `${num(r.again ?? r.back ?? 0)} of ${num(r.n)} ${what}` : 'nobody old enough yet')
+
+/** Whether Game Night is a product people come back to and spread: hosts, filling rooms, failed joins, safety. */
+function GrowthPanels({ g }: { g: Growth }) {
+  const fails = g.joinFails
+  return (
+    <div class="grid-2">
+      <Panel title="Hosts coming back" kicker={`${num(g.hosts)} PEOPLE HAVE STARTED A ROOM`} id="gn-hosts">
+        <Rows>
+          <Row label="Re-host within 7 days" def="Of people who started a room (one that played a game), the share who started another within 7 days of their first" value={pc(g.rehost7.pct)} base={rate(g.rehost7, 'did')} />
+          <Row label="Re-host within 14 days" def="The same, within 14 days" value={pc(g.rehost14.pct)} base={rate(g.rehost14, 'did')} />
+        </Rows>
+        {g.cohorts.length > 0 && <div class="table-wrap"><table class="gn-table">
+          <thead><tr><th>First hosted (week of)</th><th>Hosts</th><th>W1</th><th>W2</th><th>W3</th><th>W4</th></tr></thead>
+          <tbody>{g.cohorts.map(c => <tr key={c.week}><td>{shortDay(c.week)}</td><td>{num(c.hosts)}</td>{c.back.map((b, i) => <td key={i}>{pc(b)}</td>)}</tr>)}</tbody>
+        </table></div>}
+        <p class="fine">W1 to W4: the share of that week's new hosts who started a room again 1, 2, 3 or 4 weeks later. Weeks run Monday to Sunday, Indian time. Read nothing into a week of fewer than about 40 hosts.</p>
+      </Panel>
+
+      <Panel title="Rooms filling up" kicker="FROM MADE TO PLAYING" id="gn-fill">
+        <Rows>
+          <Row label="Time to the 3rd player" def="Minutes from a room being made to the third person sitting in it (median, started rooms)" value={mins(g.medianMinTo3rd)} />
+          <Row label="Never reached 3" def="Started rooms where fewer than three people ever sat" value={pc(g.neverThree)} base={`of ${num(g.startedRooms)}`} />
+          <Row label="Link to a closed room" def="Room links opened after the room had closed, or with a wrong code" value={num(fails.missing)} />
+          <Row label="Room full" def="Joins turned away because 30 were already in" value={num(fails.full)} />
+          <Row label="Room locked" def="Joins turned away because the host had locked the room" value={num(fails.locked)} />
+          <Row label="Banned" def="Joins turned away because the host had banned that browser or name" value={num(fails.banned)} />
+          <Row label="Could not join" def="A page whose player id the room would not take" value={num(fails.badid)} />
+        </Rows>
+      </Panel>
+
+      <Panel title="Safety" kicker="WHAT HOSTS HAD TO DO" id="gn-safety">
+        <Rows>
+          <Row label="Bans" def="Host banned someone, per 100 rooms made" value={val(g.safety.per100.bans)} base={`${num(g.safety.bans)} in all`} />
+          <Row label="Removals" def="Host removed someone (free to come back), per 100 rooms" value={val(g.safety.per100.removals)} base={`${num(g.safety.removals)} in all`} />
+          <Row label="Names turned away" def="Names the filter refused, per 100 rooms" value={val(g.safety.per100.namesRefused)} base={`${num(g.safety.namesRefused)} in all`} />
+          <Row label="TV screens" def="Shared screens opened, per 100 rooms" value={val(g.tvPer100)} base={`${num(g.tvScreens)} in all`} />
+        </Rows>
+      </Panel>
+
+      <Panel title="Shares and return" kicker="WHAT SPREADS, WHO COMES BACK" id="gn-spread">
+        <Rows>
+          <Row label="Invites shared" def="Room links shared, copied or shown as a QR code" value={num(g.shared.invite)} />
+          <Row label="Game cards shared" def="A game's result picture shared or saved" value={num(g.shared.game)} />
+          <Row label="Night cards shared" def="A game night's result picture shared or saved" value={num(g.shared.night)} />
+          <Row label="Daily results shared" def="A daily score shared or copied" value={num(g.shared.daily)} />
+          <Row label="Played again in 7 days" def="Of people who first played on a day, the share who played a game (not just opened a page) within the next 7 days" value={pc(g.playedD7.pct)} base={rate(g.playedD7)} />
+          <Row label="Played again in 14 days" def="The same, within 14 days" value={pc(g.playedD14.pct)} base={rate(g.playedD14)} />
+          <Row label="Daily D1" def="Of browsers that first played the daily on a day, the share that played it the next day" value={pc(g.dailyD1.pct)} base={rate(g.dailyD1)} />
+          <Row label="Daily D7" def="The same, 7 days later" value={pc(g.dailyD7.pct)} base={rate(g.dailyD7)} />
+        </Rows>
+        <p class="fine">Visits from shared links show in Traffic sources as Shared invite, Shared game card, Shared night card and Shared daily, even when the app they were opened in sends no referrer.</p>
+      </Panel>
+    </div>
+  )
+}
+
+/** Deletes what is kept under one browser id, when its owner asks through the contact page. */
+function Forget() {
+  const [vid, setVid] = useState('')
+  const [msg, setMsg] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const go = async (e: Event) => {
+    e.preventDefault()
+    if (!vid.trim() || !confirm(`Delete everything kept under ${vid.trim()}? This cannot be undone.`)) return
+    setBusy(true)
+    try { const r = await api.forgetBrowser(vid.trim()); setMsg(`Deleted ${num(r.deleted)} rows.`); setVid('') } catch (x) { setMsg(x instanceof Error ? x.message : 'Could not delete') } finally { setBusy(false) }
+  }
+  return (
+    <Panel title="Delete a browser's data" kicker="ON REQUEST" id="gn-forget">
+      <form class="forget" onSubmit={go}>
+        <label>Browser id (<code>gn.vid</code>, sent in their message)
+          <input value={vid} onInput={e => setVid((e.target as HTMLInputElement).value)} maxLength={40} placeholder="e.g. 3f9a1c07b2d4e6a8" autoComplete="off" spellcheck={false} /></label>
+        <button type="submit" disabled={busy || !vid.trim()}>Delete</button>
+      </form>
+      {msg && <p class="fine" role="status">{msg}</p>}
+      <p class="fine">Removes the visitor, their visits, days, seats in rooms, daily plays and feedback, and blanks them as a room's maker. Records tied to ids are deleted after 13 months anyway.</p>
+    </Panel>
   )
 }
 
@@ -294,6 +375,7 @@ export function GameNight({ onSignedOut }: { onSignedOut: () => void }) {
           <Rows>
             <Row label="Average rating" def="Stars given on the results screen (1 to 5)" value={f.avgRating === null ? '—' : `${f.avgRating.toFixed(2)} ★`} base={`${num(f.ratings)} ratings`} />
             <Row label="Would play again" def="Yes ÷ (yes + no)" value={pc(f.again)} base={`${num(f.againVotes)} answers`} />
+            {f.responseRate !== undefined && <Row label="Response rate" def="Feedback sent ÷ seats in finished games" value={pc(f.responseRate)} base={`${num(f.responses)} responses`} />}
           </Rows>
           {f.ratings > 0 && <Stars stars={f.stars} />}
           <div class="kicker gn-sub">TOP COMPLAINTS</div>
@@ -304,6 +386,8 @@ export function GameNight({ onSignedOut }: { onSignedOut: () => void }) {
           <Texts rows={f.reports ?? []} names={data.names} empty="No reports yet." />
         </Panel>
       </div>
+
+      {data.growth && <GrowthPanels g={data.growth} />}
 
       <Panel title="By game" kicker={period.toUpperCase()} id="gn-games">
         {e.byGame.length ? (
@@ -332,9 +416,11 @@ export function GameNight({ onSignedOut }: { onSignedOut: () => void }) {
         </Panel>
       </div>
 
+      <Forget />
+
       <p class="fine">
-        Counted since {shortDay(data.since)} on games.amittal.dev itself, so ad blockers do not hide anyone. Nobody is identified: a visitor is a random id in one
-        browser, a player is a random id inside one room. Test browsers and any browser opened once with games.amittal.dev/?me=1 are left out.
+        Counted since {shortDay(data.since)} on games.amittal.dev itself, so ad blockers do not hide anyone. Nobody is named: a visitor is a random id in one
+        browser (pseudonymous: kept 13 months), a player is a random id inside one room. Test browsers and any browser opened once with games.amittal.dev/?me=1 are left out.
         Days are Indian days. A person on two devices counts twice; one on a cleared browser counts as new.
       </p>
     </div>

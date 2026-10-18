@@ -187,6 +187,19 @@ describe('resources', () => {
     expect(res.status).toBe(502)
   })
 
+  it('asks Game Night to delete one browser id, signed in only, and only a real-looking id', async () => {
+    const calls: string[] = []
+    const s = setup({ GAMES: fakeWorker({ deleted: 3 } as unknown as Record<string, number>, calls) })
+    const body = (vid: string) => ({ method: 'POST', body: JSON.stringify({ vid }), headers: { 'content-type': 'application/json' } })
+    expect((await s.admin.request('/api/games/forget', body('abc123def'), s.env)).status).toBe(401)
+    const cookie = await login(s)
+    const ok = await s.admin.request('/api/games/forget', { ...body('abc123def'), headers: { 'content-type': 'application/json', cookie, origin: ORIGIN } }, s.env)
+    expect(ok.status).toBe(200)
+    expect(calls).toEqual(['POST /internal/forget'])
+    const bad = await s.admin.request('/api/games/forget', { ...body('../x'), headers: { 'content-type': 'application/json', cookie, origin: ORIGIN } }, s.env)
+    expect(bad.status).toBe(400)
+  })
+
   it('reads Game Night through its binding, and Durable Object requests from Cloudflare', async () => {
     const s = setup({ CF_API_TOKEN: 't', CF_ACCOUNT_ID: 'acct' })
     const f = (async (_url: string, init: RequestInit) => {

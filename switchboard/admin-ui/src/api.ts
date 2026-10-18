@@ -97,8 +97,22 @@ export interface GamesReport {
     completion: Ratio; aborted: Ratio; unfinished: Ratio; dropRate: Ratio; dropped: number; seats: number; reconnect: Ratio; rejoined: number
     errorSessions: Ratio; errorGames: Ratio; actions: number; serverErrors: number; topErrors: Count[]
   }
-  feedback: { responses: number; ratings: number; avgRating: number | null; stars: number[]; againVotes: number; again: Ratio; complaints: Text[]; ideas: Text[]; reports?: Text[] }
+  feedback: { responses: number; responseRate?: Ratio; ratings: number; avgRating: number | null; stars: number[]; againVotes: number; again: Ratio; complaints: Text[]; ideas: Text[]; reports?: Text[] }
+  /** Added 18 Oct 2026: hosts who host again, how rooms fill, where joins fail, safety, what is shared, and return rates. */
+  growth?: Growth
   series: { day: string; visitors: number; players: number; newVisitors: number; rooms: number; games: number }[]
+}
+
+export interface Rate { n: number; again?: number; back?: number; pct: Ratio }
+export interface Growth {
+  rehost7: Rate; rehost14: Rate; hosts: number
+  cohorts: { week: string; hosts: number; back: Ratio[] }[]
+  medianMinTo3rd: number | null; neverThree: Ratio; startedRooms: number
+  joinFails: { missing: number; full: number; locked: number; banned: number; badid: number }
+  safety: { bans: number; removals: number; namesRefused: number; per100: { bans: number | null; removals: number | null; namesRefused: number | null } }
+  tvScreens: number; tvPer100: number | null
+  shared: { invite: number; game: number; night: number; daily: number }
+  dailyD1: Rate; dailyD7: Rate; playedD7: Rate; playedD14: Rate
 }
 
 /** The session ended (or never started): the app shows the sign-in screen. */
@@ -122,6 +136,7 @@ export const api = {
   traffic: (site: string | null, days: number) => call<Traffic>(`/api/traffic?days=${days}${site ? `&site=${site}` : ''}`),
   resources: (fresh = false) => call<Resources | null>('/api/resources' + (fresh ? '?fresh=1' : '')),
   games: (days: number) => call<GamesReport>(`/api/games?days=${days}`),
+  forgetBrowser: (vid: string) => post<{ deleted: number }>('/api/games/forget', { vid }),
   alerts: () => call<Alert[]>('/api/alerts'),
   action: (name: string, body: Record<string, unknown> = {}) => post<{ ok: true; message: string }>(`/api/actions/${name}`, body),
 }
