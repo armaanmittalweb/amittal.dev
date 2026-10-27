@@ -79,6 +79,7 @@ const SYNONYMS: Record<string, string> = {
   onnx: 'loomcore inference runtime', inference: 'onnx runtime loomcore', runtime: 'loomcore onnx scheduler', scheduler: 'loomcore dag batching', dag: 'loomcore graph scheduler', quantization: 'int8 loomcore', int8: 'quantization loomcore', batching: 'loomcore scheduler',
   concurrency: 'lockfree thread', thread: 'concurrency', lockfree: 'concurrency ring buffer',
   chess: 'openingos opening repertoire', farm: 'farmsaathi farming crop', farming: 'farmsaathi agriculture', agriculture: 'farmsaathi farming', crop: 'farmsaathi', plant: 'leaf disease farmsaathi',
+  game: 'gamenight party multiplayer', party: 'gamenight games', multiplayer: 'gamenight real-time websockets', wordle: 'gamenight', trivia: 'gamenight', websocket: 'real-time gamenight', cloudflare: 'workers durable gamenight',
   timetable: 'edusched schedule', schedule: 'edusched timetable', college: 'education thapar', university: 'education thapar', school: 'education', degree: 'education', study: 'education',
   stress: 'safespace signal hrv', anxiety: 'stress safespace', health: 'safespace stress', wellness: 'safespace stress', wellbeing: 'safespace stress',
   wearable: 'safespace sensor hrv', sensor: 'signal safespace', biosignal: 'signal hrv eeg', hrv: 'heart rate variability safespace', heart: 'hrv',

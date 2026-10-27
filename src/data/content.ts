@@ -172,6 +172,22 @@ export const PROJECTS: Project[] = [
       { q: 'Why re-check clashes on submit?', alt: 'Trusting the room list the client showed', whyNot: ['The room list ignores professor clashes', 'A slot can fill between listing and submitting'], decision: 'CHECKS INSIDE A TRANSACTION' },
     ],
     fails: [] },
+  { id: 'gamenight', name: 'Game Night', tag: 'Real-time party games for friend groups', cat: 'interface', year: '2026',
+    tags: ['TypeScript', 'Cloudflare Workers', 'Durable Objects', 'WebSockets', 'Real-time', 'Preact', 'Game design'],
+    sourceNote: 'SOURCE IS PRIVATE',
+    live: 'https://games.amittal.dev',
+    l1: 'Free party games played on everyone\'s own phone: one person opens a room, friends join with a five-letter code, and 25 games, from Draw & Guess and Imposter to Trivia and a live Wordle race, play out in real time for 2 to 30 players.',
+    l2: 'Each room is a Cloudflare Durable Object named by its code. It holds the players, chat and game in memory, keeps every phone\'s WebSocket, and is the one place that orders moves when two players act at once. A move arrives as a message, the room checks it against that game\'s rules, and each phone is sent only what its player may see, so answers and hidden roles never reach the wrong phone. A game night plans several games to fit the room\'s size and mood, carries points between them and can run as a knockout tournament. The page is Preact and htm, served from versioned static assets so an update never mixes old and new code. Rooms delete themselves a day after they were last used; a second Durable Object keeps the site\'s counts for a private dashboard.',
+    pipeline: ['Room code', 'Edge Worker', 'Room Durable Object', 'Game rules', 'Per-player views', 'Phones'],
+    breaks: {
+      0: ['EXPECTED  { code } from POST /api/rooms', 'RECEIVED  too many new rooms from one address', 'Too many rooms made from here. Try again in a minute.', 'ROOM NOT MADE (429)'],
+      3: ['EXPECTED  a move from a seated player', 'RECEIVED  a guess from someone watching', 'You are watching this game', 'MOVE REFUSED'],
+    },
+    why: [
+      { q: 'Why one Durable Object per room instead of stateless servers and a database?', alt: 'Stateless Workers with room state in a database', whyNot: ['Every guess and brush stroke would be a database round trip', 'Two players acting at once need one place that decides the order'], decision: 'ONE DURABLE OBJECT PER ROOM' },
+      { q: 'Why check every answer on the server?', alt: 'Sending the answer to each phone and checking it there', whyNot: ['Anyone could read the answer in the browser\'s network tab', 'Hidden-role games fall apart if one phone can see every role'], decision: 'ANSWERS STAY IN THE ROOM' },
+    ],
+    fails: [{ problem: 'A knockout tournament knocked nobody out', symptom: 'In a tournament night, when the players at the bottom were level on points (two who made no move, or a shared place), every one of them stayed in and the cut did nothing.', investigation: 'The cut kept everyone whose night points matched the last place that survived, so a tie at the line kept the whole tie.', solution: 'The cut now keeps exactly the planned number: players level on night points are split by this game\'s points, then this game\'s places, then a coin toss, and the results say what decided it.', result: 'Fixed on 16 October 2026, with a check that runs the cut many times with every player level.' }] },
 ]
 
 export const RESEARCH = [
@@ -246,7 +262,7 @@ export const CAPS: { group: string; cat: Category; items: Capability[] }[] = [
     { id: 'api', name: 'APIS', title: 'APIs', projects: ['farmsaathi', 'openingos', 'edusched'], at: [['Engagely.ai', 'resume']], tech: 'FastAPI, Express, Fastify' },
     { id: 'db', name: 'DATABASES', title: 'Databases', projects: ['edusched', 'openingos', 'farmsaathi'], tech: 'MySQL, PostgreSQL, MongoDB, ChromaDB, IndexedDB' },
     { id: 'infra', name: 'INFRASTRUCTURE', title: 'Infrastructure', projects: ['farmsaathi'], at: [['Samsung R&D', 'resume'], ['Engagely.ai', 'resume']], tech: 'Docker, Kubernetes, CI/CD, Celery, RabbitMQ, Redis' },
-    { id: 'web', name: 'WEB APPS', title: 'Web apps', projects: ['openingos', 'edusched'], tech: 'React, local-first PWAs, IndexedDB' },
+    { id: 'web', name: 'WEB APPS', title: 'Web apps', projects: ['openingos', 'edusched', 'gamenight'], tech: 'React, Preact, local-first PWAs, IndexedDB, real-time WebSockets' },
   ] },
 ]
 

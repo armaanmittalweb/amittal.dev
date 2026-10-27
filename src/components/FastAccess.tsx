@@ -54,7 +54,7 @@ export function FastAccess() {
           <h2 style={label}>PROJECTS</h2>
           {PROJECTS.map(p => row(p.id, <>
             <h3 className="stencil" style={{ fontWeight: 700, fontSize: 28, lineHeight: 1 }}>{p.name}</h3>
-            <span style={meta}>{p.year}{p.repo && <> · <a href={p.repo} target="_blank" rel="noopener">SOURCE</a></>}</span>
+            <span style={meta}>{p.year}{p.live && <> · <a href={p.live} target="_blank" rel="noopener">LIVE</a></>}{p.repo && <> · <a href={p.repo} target="_blank" rel="noopener">SOURCE</a></>}</span>
           </>, p.l1))}
         </section>
         <section style={{ display: 'flex', flexDirection: 'column' }}>
