@@ -11,6 +11,7 @@ import { getSetting, setSetting, type Sql } from '../sql'
 import { dayOf, pruneTraffic, trafficReport } from '../traffic'
 import { listAlerts, ntfy, syncAlerts, wantedAlerts } from './alerts'
 import { SESSION_COOKIE, SESSION_DAYS, signSession, verifySession, verifyPassword } from './auth'
+import { adsense } from './adsense'
 import { callInternal, collectResources, redeploy, REFRESH_MS, type Resources } from './resources'
 
 export interface AdminDeps extends Deps {
@@ -170,6 +171,29 @@ export function createAdmin(deps: AdminDeps) {
       return c.json(await callInternal(c.env, 'GAMES', `/internal/analytics?days=${days}`))
     } catch (e) {
       return c.json({ error: `Could not read Game Night: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
+    }
+  })
+
+  // The Ads tab: Game Night's box ads. Its own counts and estimate (the games Worker's analytics), with AdSense's
+  // figures beside them once AdSense is connected (src/admin/adsense.ts).
+  app.get('/api/ads', async c => {
+    const days = [7, 30, 90].includes(Number(c.req.query('days'))) ? Number(c.req.query('days')) : 30
+    try {
+      const r = (await callInternal(c.env, 'GAMES', `/internal/analytics?days=${days}`)) as unknown as { from: string; today: string; ads: unknown; series: { day: string; visitors: number; players: number }[] }
+      return c.json({ from: r.from, today: r.today, ads: r.ads, series: r.series.map(s => ({ day: s.day, visitors: s.visitors, players: s.players })), adsense: await adsense(c.env, r.from, r.today) })
+    } catch (e) {
+      return c.json({ error: `Could not read Game Night: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
+    }
+  })
+
+  // The ads' settings: on or off, the AdSense ids, each place on or off, the room split, the estimate's rates.
+  app.post('/api/ads/config', async c => {
+    const body = await c.req.json().catch(() => null)
+    if (!body || typeof body !== 'object') return c.json({ error: 'Could not read that' }, 400)
+    try {
+      return c.json(await callInternal(c.env, 'GAMES', '/internal/ads', 'POST', body))
+    } catch (e) {
+      return c.json({ error: `Could not reach Game Night: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
     }
   })
 

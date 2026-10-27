@@ -42,6 +42,11 @@ export interface Bindings {
   VERCEL_TOKEN?: string
   VERCEL_TEAM_ID?: string
   NTFY_TOPIC?: string
+  /** AdSense's own earnings for the Ads tab (src/admin/adsense.ts). */
+  ADSENSE_CLIENT_ID?: string
+  ADSENSE_CLIENT_SECRET?: string
+  ADSENSE_REFRESH_TOKEN?: string
+  ADSENSE_ACCOUNT?: string
 }
 
 export interface Deps {

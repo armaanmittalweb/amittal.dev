@@ -381,3 +381,14 @@ kbd { font-size: 9px; color: var(--dim); border: 1px solid var(--line-2); border
 .forget { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap }
 .forget label { display: flex; flex-direction: column; gap: 4px; flex: 1 1 220px; font-size: 13px }
 .forget input { font: inherit; padding: 8px 10px }
+
+/* Ads: the settings form and the list of places. */
+.ads-set { display: flex; flex-direction: column; gap: 14px }
+.ads-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap }
+.ads-ids { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap }
+.ads-ids label { display: flex; flex-direction: column; gap: 4px; flex: 1 1 200px; font-size: 13px }
+.ads-ids input { font: inherit; padding: 8px 10px }
+.ads-h { font: 10px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 6px 0 0; font-weight: 400 }
+.ads-places { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 0 24px }
+.ads-places li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px }
+.ads-places small { color: var(--muted) }

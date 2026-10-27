@@ -138,11 +138,13 @@ interface FarmSaathiStats {
 type Fetch = typeof fetch
 
 /** Calls a project Worker's private route through its service binding. */
-export async function callInternal(env: Bindings, name: 'EDUSCHED' | 'OPENINGOS' | 'SAFESPACE' | 'FARMSAATHI' | 'GAMES', path: string, method = 'GET'): Promise<Record<string, number>> {
+export async function callInternal(env: Bindings, name: 'EDUSCHED' | 'OPENINGOS' | 'SAFESPACE' | 'FARMSAATHI' | 'GAMES', path: string, method = 'GET', body?: unknown): Promise<Record<string, number>> {
   const target = env[name]
   if (!target) throw new Error(`the ${name} service binding is not configured`)
   if (!env.INTERNAL_KEY) throw new Error('INTERNAL_KEY is not set')
-  const res = await target.fetch(`https://${name.toLowerCase()}.internal${path}`, { method, headers: { 'x-internal-key': env.INTERNAL_KEY } })
+  const res = await target.fetch(`https://${name.toLowerCase()}.internal${path}`, {
+    method, headers: { 'x-internal-key': env.INTERNAL_KEY, ...(body === undefined ? {} : { 'content-type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body),
+  })
   if (!res.ok) throw new Error(`${name.toLowerCase()} answered ${res.status}`)
   return res.json()
 }

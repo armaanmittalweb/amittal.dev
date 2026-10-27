@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'preact/hooks'
+import { Ads } from './Ads'
 import { api, SignedOut, type Overview } from './api'
 import { Board } from './Board'
 import { Controls } from './Controls'
@@ -10,13 +11,14 @@ import { Resources } from './Resources'
 import { Traffic } from './Traffic'
 import { Lamp } from './ui'
 
-export type Route = 'board' | 'traffic' | 'games' | 'resources' | 'controls'
+export type Route = 'board' | 'traffic' | 'games' | 'ads' | 'resources' | 'controls'
 const ROUTES: { id: Route; label: string; key: string }[] = [
   { id: 'board', label: 'Board', key: '1' },
   { id: 'traffic', label: 'Traffic', key: '2' },
   { id: 'games', label: 'Game Night', key: '3' },
-  { id: 'resources', label: 'Resources', key: '4' },
-  { id: 'controls', label: 'Controls', key: '5' },
+  { id: 'ads', label: 'Ads', key: '4' },
+  { id: 'resources', label: 'Resources', key: '5' },
+  { id: 'controls', label: 'Controls', key: '6' },
 ]
 const REFRESH_MS = 60_000
 
@@ -177,6 +179,7 @@ export function App() {
         {data && route === 'board' && <Board data={data} go={go} />}
         {data && route === 'traffic' && <Traffic lines={data.services} onSignedOut={signedOut} />}
         {data && route === 'games' && <GameNight onSignedOut={signedOut} />}
+        {data && route === 'ads' && <Ads onSignedOut={signedOut} />}
         {data && route === 'resources' && <Resources data={data.resources} now={data.now} busy={busy === 'refresh-resources'} onRefresh={() => void run('refresh-resources')} />}
         {data && route === 'controls' && <Controls data={data} run={run} busy={busy} onSignedOut={signedOut} />}
       </main>

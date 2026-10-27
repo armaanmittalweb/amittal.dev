@@ -128,6 +128,33 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 const post = <T>(path: string, body: unknown = {}) => call<T>(path, { method: 'POST', body: JSON.stringify(body) })
 
+// Game Night's box ads (src/ads.ts in the games repo, src/admin/adsense.ts here).
+export interface AdsConfig {
+  mode: 'off' | 'test' | 'live'; client: string; units: { box: string; large: string; tall: string }; off: string[]
+  split: number; firstNightFree: boolean; ecpm: { in: number; other: number }; updated: number
+}
+export interface AdTot { req: number; fill: number; empty: number; view: number; click: number; usd: number }
+interface SplitSide { rooms: number; started: number; gamesPerRoom: number | null; second: number | null }
+export interface AdsReport {
+  from: string
+  today: string
+  series: { day: string; visitors: number; players: number }[]
+  ads: {
+    config: AdsConfig
+    places: Record<string, { label: string; phase: 1 | 2 }>
+    total: AdTot
+    series: (AdTot & { day: string })[]
+    byPlace: (AdTot & { key: string; label: string })[]
+    byDevice: (AdTot & { key: string; label: string })[]
+    byGeo: (AdTot & { key: string; label: string })[]
+    split: { pct: number; withAds: SplitSide; without: SplitSide | null }
+  }
+  adsense:
+    | { connected: false; missing: string[] }
+    | { connected: true; error: string }
+    | { connected: true; currency: string; days: { day: string; earnings: number; impressions: number; clicks: number; pageViews: number; rpm: number }[]; units: { unit: string; earnings: number; impressions: number; clicks: number }[]; total: { earnings: number; impressions: number; clicks: number; pageViews: number } }
+}
+
 export const api = {
   session: () => call<{ authed: boolean; configured: boolean }>('/api/session'),
   login: (password: string) => post<{ ok: true }>('/api/login', { password }),
@@ -136,6 +163,8 @@ export const api = {
   traffic: (site: string | null, days: number) => call<Traffic>(`/api/traffic?days=${days}${site ? `&site=${site}` : ''}`),
   resources: (fresh = false) => call<Resources | null>('/api/resources' + (fresh ? '?fresh=1' : '')),
   games: (days: number) => call<GamesReport>(`/api/games?days=${days}`),
+  ads: (days: number) => call<AdsReport>(`/api/ads?days=${days}`),
+  adsConfig: (c: AdsConfig) => post<AdsConfig>('/api/ads/config', c),
   forgetBrowser: (vid: string) => post<{ deleted: number }>('/api/games/forget', { vid }),
   alerts: () => call<Alert[]>('/api/alerts'),
   action: (name: string, body: Record<string, unknown> = {}) => post<{ ok: true; message: string }>(`/api/actions/${name}`, body),
