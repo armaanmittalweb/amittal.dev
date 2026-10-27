@@ -1,0 +1,2 @@
+google.com, pub-8460310688642925, DIRECT, f08c47fec0942fa0
+subdomain=games.amittal.dev
