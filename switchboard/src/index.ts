@@ -15,10 +15,12 @@ const app = createApp(deps)
 const admin = createAdmin(deps)
 
 export default {
-  // api.amittal.dev is the public API; admin.amittal.dev is the dashboard.
+  // api.amittal.dev is the public API; admin.amittal.dev is the dashboard, and dash.chaotictails.com is Chaotic
+  // Tails' console on the same admin app.
   fetch(req, env, ctx) {
     const host = new URL(req.url).hostname
-    return (host === (env.ADMIN_HOST ?? 'admin.amittal.dev') ? admin : app).fetch(req, env, ctx)
+    const console_ = host === (env.ADMIN_HOST ?? 'admin.amittal.dev') || host === (env.DASH_HOST ?? 'dash.chaotictails.com')
+    return (console_ ? admin : app).fetch(req, env, ctx)
   },
   // Every 5 minutes (wrangler.jsonc): record a round of checks, then the admin's alerts and upkeep.
   async scheduled(_event, env, ctx) {

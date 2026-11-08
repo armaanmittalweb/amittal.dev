@@ -32,7 +32,7 @@ export function readHit(body: string, origin: string | null, ua: string): Hit | 
   }
   const svc = SERVICES.find(s => s.id === data.s)
   if (!svc || typeof data.p !== 'string') return null
-  const allowed = [svc.origin, ...(svc.id === 'archive' ? ['https://amittal.dev'] : [])]
+  const allowed = [svc.origin, ...(svc.also ?? []), ...(svc.id === 'archive' ? ['https://amittal.dev'] : [])]
   if (!origin || !allowed.includes(origin)) return null
   const path = ('/' + data.p.split(/[?#]/)[0].replace(/^\/+/, '')).slice(0, MAX_PATH)
   return { site: svc.id, path, ref: refHost(data.r) }

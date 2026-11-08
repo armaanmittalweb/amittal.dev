@@ -29,6 +29,8 @@ export interface Bindings {
   ASSETS?: Fetcher
   /** Hostname that serves the admin dashboard instead of the public API. */
   ADMIN_HOST?: string
+  /** Chaotic Tails' console (dash.chaotictails.com): the admin app, serving admin-ui/dash.html. */
+  DASH_HOST?: string
   HIT_LIMITER?: Limiter
   LOGIN_LIMITER?: Limiter
   // Secrets (wrangler secret put). Everything but the first two is optional.

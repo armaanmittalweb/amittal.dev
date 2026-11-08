@@ -14,6 +14,8 @@ export interface Service {
   check: Check
   /** The site's public address: where visitors land and where its page-view beacon comes from. */
   origin: string
+  /** Earlier addresses whose open pages may still send beacons for a while after a move. */
+  also?: string[]
 }
 
 // Checks must not touch a database: a Neon compute that is queried every 5 minutes never scales to zero
@@ -26,7 +28,8 @@ export const SERVICES: Service[] = [
   { id: 'loomcore', name: 'Loomcore', hosts: ['Vercel', 'Workers', 'Modal'], check: { url: 'https://loomcore.amittal.dev/' }, origin: 'https://loomcore.amittal.dev' },
   { id: 'farmsaathi', name: 'FarmSaathi', hosts: ['Vercel', 'Workers', 'D1', 'Modal'], check: { url: 'https://farmsaathi.amittal.dev/' }, origin: 'https://farmsaathi.amittal.dev' },
   // The page is a static asset, so the check never wakes a room.
-  { id: 'games', name: 'Game Night', hosts: ['Workers', 'Durable Objects'], check: { url: 'https://games.amittal.dev/' }, origin: 'https://games.amittal.dev' },
+  // Chaotic Tails (was Game Night at games.amittal.dev, which now sends people to chaotictails.com).
+  { id: 'games', name: 'Chaotic Tails', hosts: ['Workers', 'Durable Objects'], check: { url: 'https://chaotictails.com/' }, origin: 'https://chaotictails.com', also: ['https://games.amittal.dev'] },
 ]
 
 export const liveIds = (live: string | undefined) => new Set((live ?? '').split(',').map(s => s.trim()).filter(Boolean))

@@ -12,6 +12,7 @@ import { dayOf, pruneTraffic, trafficReport } from '../traffic'
 import { listAlerts, ntfy, syncAlerts, wantedAlerts } from './alerts'
 import { SESSION_COOKIE, SESSION_DAYS, signSession, verifySession, verifyPassword } from './auth'
 import { adsense } from './adsense'
+import { indexNow, launchChecks } from './chaotic'
 import { callInternal, collectResources, redeploy, REFRESH_MS, type Resources } from './resources'
 
 export interface AdminDeps extends Deps {
@@ -32,7 +33,11 @@ const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; font-src '
 function fromDashboard(c: Context<Env>) {
   try {
     const { host, hostname } = new URL(c.req.header('origin') ?? '')
-    return host === (c.env.ADMIN_HOST ?? 'admin.amittal.dev') || hostname === 'localhost' || hostname === '127.0.0.1'
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true
+    // Either console's own pages (admin.amittal.dev, dash.chaotictails.com). The session cookie is per host and
+    // SameSite=Strict, so a page on one cannot act with the other's session.
+    const consoles = [c.env.ADMIN_HOST ?? 'admin.amittal.dev', c.env.DASH_HOST ?? 'dash.chaotictails.com']
+    return consoles.includes(host)
   } catch {
     return false
   }
@@ -186,6 +191,15 @@ export function createAdmin(deps: AdminDeps) {
     }
   })
 
+  // Just the ads' settings (the console's overview shows whether ads are on).
+  app.get('/api/ads/config', async c => {
+    try {
+      return c.json(await callInternal(c.env, 'GAMES', '/internal/ads'))
+    } catch (e) {
+      return c.json({ error: `Could not read the ads settings: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
+    }
+  })
+
   // The ads' settings: on or off, the AdSense ids, each place on or off, the room split, the estimate's rates.
   app.post('/api/ads/config', async c => {
     const body = await c.req.json().catch(() => null)
@@ -207,6 +221,30 @@ export function createAdmin(deps: AdminDeps) {
     } catch (e) {
       return c.json({ error: `Could not reach Game Night: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
     }
+  })
+
+  // Chaotic Tails' switches (src/site.ts in the games repo): the notice, pausing new rooms, games taken out.
+  app.get('/api/site', async c => {
+    try {
+      return c.json(await callInternal(c.env, 'GAMES', '/internal/site'))
+    } catch (e) {
+      return c.json({ error: `Could not read Chaotic Tails: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
+    }
+  })
+  app.post('/api/site', async c => {
+    const body = await c.req.json().catch(() => null)
+    if (!body || typeof body !== 'object') return c.json({ error: 'Could not read that' }, 400)
+    try {
+      return c.json(await callInternal(c.env, 'GAMES', '/internal/site', 'POST', body))
+    } catch (e) {
+      return c.json({ error: `Could not reach Chaotic Tails: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
+    }
+  })
+
+  // The launch page: the site as Google Search and AdSense see it, checked live (src/admin/chaotic.ts).
+  app.get('/api/launch', async c => {
+    const mode = await callInternal(c.env, 'GAMES', '/internal/ads').then(r => String((r as unknown as { mode: string }).mode), () => null)
+    return c.json(await launchChecks(deps.fetch ?? fetch, mode))
   })
 
   app.post('/api/actions/:name', async c => {
@@ -245,6 +283,12 @@ export function createAdmin(deps: AdminDeps) {
           const id = await redeploy(env, String(body.site ?? ''), deps.fetch)
           return c.json({ ok: true, message: `Build started (${id.slice(0, 12)}…). It takes about a minute.` })
         }
+        case 'indexnow': {
+          const r = await indexNow(deps.fetch ?? fetch)
+          const ok = r.answers.filter(a => a.status === 200 || a.status === 202).length
+          if (!ok) return c.json({ error: `No engine took the ${r.urls} pages: ${r.answers.map(a => `${a.engine} ${a.status}`).join(', ')}` }, 502)
+          return c.json({ ok: true, message: `Sent ${r.urls} pages; ${ok} of ${r.answers.length} engines took them.` })
+        }
         case 'test-alert': {
           const notify = ntfy(env.NTFY_TOPIC, deps.fetch)
           if (!notify) return c.json({ error: 'Set NTFY_TOPIC first.' }, 400)
@@ -264,6 +308,12 @@ export function createAdmin(deps: AdminDeps) {
   // Everything else is the dashboard itself (a single-page app; unknown paths get index.html).
   app.get('*', async c => {
     if (!c.env.ASSETS) return c.text('The dashboard files are not deployed.', 503)
+    // dash.chaotictails.com is its own app (admin-ui/dash.html): any page that is not a file gets it.
+    const url = new URL(c.req.url)
+    if (url.hostname === (c.env.DASH_HOST ?? 'dash.chaotictails.com') && !/\.[a-z0-9]+$/i.test(url.pathname)) {
+      const res = await c.env.ASSETS.fetch(new Request(new URL('/dash', url), c.req.raw))
+      return new Response(res.body, res)
+    }
     const res = await c.env.ASSETS.fetch(c.req.raw)
     return new Response(res.body, res)
   })

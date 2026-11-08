@@ -8,7 +8,9 @@
   // Cloudflare creates the DNS records and certificates).
   "routes": [
     { "pattern": "api.amittal.dev", "custom_domain": true },
-    { "pattern": "admin.amittal.dev", "custom_domain": true }
+    { "pattern": "admin.amittal.dev", "custom_domain": true },
+    // Chaotic Tails' own console: the same login and data, its own pages (admin-ui/dash.html).
+    { "pattern": "dash.chaotictails.com", "custom_domain": true }
   ],
   // The dashboard's files. The Worker runs first on every request, so api.amittal.dev never serves them.
   "assets": { "directory": "./admin-ui/dist", "binding": "ASSETS", "run_worker_first": true, "not_found_handling": "single-page-application" },
@@ -17,6 +19,7 @@
     // Checked services when the admin has not changed the list (settings.live in D1).
     "LIVE": "archive,edusched,safespace,openingos,farmsaathi,loomcore,games",
     "ADMIN_HOST": "admin.amittal.dev",
+    "DASH_HOST": "dash.chaotictails.com",
     "CF_ACCOUNT_ID": "97aa1d30eb49a5168de748e049a18f5d",
     "NEON_PROJECTS": "edusched:solitary-river-84073411,openingos:autumn-dust-23522001",
     "VERCEL_TEAM_ID": "team_SH0KbKBooKdzfxZQtQJNnLyk"

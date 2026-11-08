@@ -155,6 +155,15 @@ export interface AdsReport {
     | { connected: true; currency: string; days: { day: string; earnings: number; impressions: number; clicks: number; pageViews: number; rpm: number }[]; units: { unit: string; earnings: number; impressions: number; clicks: number }[]; total: { earnings: number; impressions: number; clicks: number; pageViews: number } }
 }
 
+// Chaotic Tails' switches (src/site.ts in the games repo) and the launch checks (src/admin/chaotic.ts).
+export interface SiteConfig {
+  notice: { text: string; tone: 'info' | 'warn' | 'good'; until: number | null }
+  paused: { on: boolean; message: string }
+  gamesOff: string[]
+  updated: number
+}
+export interface LaunchCheck { id: string; group: 'search' | 'ads' | 'site'; label: string; ok: boolean | null; detail: string }
+
 export const api = {
   session: () => call<{ authed: boolean; configured: boolean }>('/api/session'),
   login: (password: string) => post<{ ok: true }>('/api/login', { password }),
@@ -168,4 +177,8 @@ export const api = {
   forgetBrowser: (vid: string) => post<{ deleted: number }>('/api/games/forget', { vid }),
   alerts: () => call<Alert[]>('/api/alerts'),
   action: (name: string, body: Record<string, unknown> = {}) => post<{ ok: true; message: string }>(`/api/actions/${name}`, body),
+  adsSettings: () => call<AdsConfig>('/api/ads/config'),
+  site: () => call<SiteConfig>('/api/site'),
+  setSite: (c: Partial<SiteConfig>) => post<SiteConfig>('/api/site', c),
+  launch: () => call<{ at: number; checks: LaunchCheck[] }>('/api/launch'),
 }

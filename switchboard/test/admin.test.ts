@@ -187,6 +187,30 @@ describe('resources', () => {
     expect(res.status).toBe(502)
   })
 
+  it('reads and sets Chaotic Tails\' switches through the binding, signed in and from a console only', async () => {
+    const calls: string[] = []
+    const s = setup({ GAMES: fakeWorker({}, calls) })
+    expect((await s.admin.request('/api/site', {}, s.env)).status).toBe(401)
+    const cookie = await login(s)
+    expect((await s.admin.request('/api/site', { headers: { cookie } }, s.env)).status).toBe(200)
+    const set = (origin: string) => s.admin.request('/api/site', { method: 'POST', headers: { cookie, origin, 'content-type': 'application/json' }, body: JSON.stringify({ paused: { on: true, message: 'x' } }) }, s.env)
+    expect((await set('https://evil.example')).status).toBe(403)
+    expect((await set('https://dash.chaotictails.com')).status).toBe(200)
+    expect((await set(ORIGIN)).status).toBe(200)
+    expect((await s.admin.request('/api/ads/config', { headers: { cookie } }, s.env)).status).toBe(200)
+    expect(calls).toEqual(['GET /internal/site', 'POST /internal/site', 'POST /internal/site', 'GET /internal/ads'])
+  })
+
+  it('serves the console page on dash.chaotictails.com and the Switchboard elsewhere', async () => {
+    const asked: string[] = []
+    const s = setup({ ASSETS: { fetch: async (r: Request) => { asked.push(new URL(r.url).pathname); return new Response('<!doctype html>') } } as unknown as Fetcher })
+    await s.admin.request('https://dash.chaotictails.com/', {}, s.env)
+    await s.admin.request('https://dash.chaotictails.com/anything', {}, s.env)
+    await s.admin.request('https://dash.chaotictails.com/assets/app.js', {}, s.env)
+    await s.admin.request('https://admin.amittal.dev/', {}, s.env)
+    expect(asked).toEqual(['/dash', '/dash', '/assets/app.js', '/'])
+  })
+
   it('asks Game Night to delete one browser id, signed in only, and only a real-looking id', async () => {
     const calls: string[] = []
     const s = setup({ GAMES: fakeWorker({ deleted: 3 } as unknown as Record<string, number>, calls) })
