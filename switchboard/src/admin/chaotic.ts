@@ -40,6 +40,22 @@ export async function launchChecks(f: Fetch = fetch, adsMode: string | null = nu
       const h = await home
       return [h.status === 200, `https://chaotictails.com/ answered ${h.status}`]
     }),
+    run('csp', 'site', 'Pages carry the security policy and HSTS', async () => {
+      const h = await home
+      const csp = h.headers.get('content-security-policy') ?? ''
+      const hsts = h.headers.get('strict-transport-security') ?? ''
+      const ok = /script-src 'self'/.test(csp) && /frame-ancestors 'none'/.test(csp) && /max-age=\d{7,}/.test(hsts) && /includeSubDomains/i.test(hsts)
+      return [ok, `${csp ? 'policy present' : 'NO security policy'} · ${hsts ? `HSTS: ${hsts}` : 'NO HSTS'}`]
+    }),
+    run('http', 'site', 'http:// goes to https://', async () => {
+      const r = await get(f, 'http://chaotictails.com/games?check=1')
+      const to = r.headers.get('location') ?? ''
+      return [r.status >= 301 && r.status <= 308 && to.startsWith('https://chaotictails.com/'), `${r.status} → ${to || 'nowhere'}`]
+    }),
+    run('securitytxt', 'site', 'security.txt says how to report a problem', async () => {
+      const r = await get(f, SITE + '/.well-known/security.txt')
+      return [r.status === 200 && /^Contact:/m.test(r.text) && /^Expires:/m.test(r.text), r.status === 200 ? r.text.split('\n')[0] : `answered ${r.status}`]
+    }),
     run('index', 'search', 'Google may index the home page', async () => {
       const h = await home
       const header = h.headers.get('x-robots-tag') ?? ''

@@ -9,7 +9,7 @@ import { liveOf, recordChecks, type Bindings, type Deps } from '../app'
 import { SERVICES } from '../services'
 import { getSetting, setSetting, type Sql } from '../sql'
 import { dayOf, pruneTraffic, trafficReport } from '../traffic'
-import { listAlerts, ntfy, syncAlerts, wantedAlerts } from './alerts'
+import { floodAlerts, listAlerts, ntfy, syncAlerts, wantedAlerts, type Wanted } from './alerts'
 import { SESSION_COOKIE, SESSION_DAYS, signSession, verifySession, verifyPassword } from './auth'
 import { adsense } from './adsense'
 import { indexNow, launchChecks } from './chaotic'
@@ -73,7 +73,24 @@ async function evaluate(env: Bindings, deps: AdminDeps, now: number, resources?:
   const res = resources ?? (await cachedResources(sql))
   const names = Object.fromEntries(SERVICES.map(s => [s.id, s.name]))
   const wanted = wantedAlerts(await recentChecks(sql, now), names, await liveOf(deps, env), res?.meters ?? [])
+  // Flood alerts are worked out by the cron (floodCheck) and kept, so an evaluation from a button keeps them open.
+  const flood = JSON.parse((await getSetting(sql, 'flood')) ?? '[]') as [string, Wanted][]
+  for (const [k, w] of flood) wanted.set(k, w)
   return syncAlerts(sql, wanted, now, ntfy(env.NTFY_TOPIC, deps.fetch))
+}
+
+/** Chaotic Tails' rooms since the last tick (from today's count in IST; a new day starts it again) and rooms open now. */
+async function floodCheck(env: Bindings, sql: Sql, now: number) {
+  try {
+    const g = (await callInternal(env, 'GAMES', '/internal/stats')) as unknown as { liveRooms: number; today: { rooms: number } }
+    const was = JSON.parse((await getSetting(sql, 'flood-last')) ?? 'null') as { at: number; rooms: number } | null
+    const fresh = was && now - was.at < 11 * 60_000 && g.today.rooms >= was.rooms
+    const newRooms = was && fresh ? Math.round(((g.today.rooms - was.rooms) * 5 * 60_000) / Math.max(60_000, now - was.at)) : null
+    await setSetting(sql, 'flood-last', JSON.stringify({ at: now, rooms: g.today.rooms }))
+    await setSetting(sql, 'flood', JSON.stringify([...floodAlerts(newRooms, g.liveRooms ?? 0)]))
+  } catch {
+    // The games Worker did not answer: its own down alert covers that; the last flood state stays.
+  }
 }
 
 /** The cron's admin work, after each round of checks: resources every 6 hours, alerts every time, traffic pruning daily. */
@@ -82,6 +99,7 @@ export async function adminTick(env: Bindings, deps: AdminDeps) {
   const sql = deps.sql(env)
   let res = await cachedResources(sql)
   if (!res || now - res.at > REFRESH_MS) res = await freshResources(env, deps, now)
+  await floodCheck(env, sql, now)
   await evaluate(env, deps, now, res)
   await pruneTraffic(sql, now)
 }

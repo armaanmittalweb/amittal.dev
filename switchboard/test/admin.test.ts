@@ -362,3 +362,15 @@ describe('actions', () => {
     expect(await res.json()).toEqual({ error: 'VERCEL_TOKEN is not set' })
   })
 })
+
+describe('flood alerts', () => {
+  it('warns on a burst of new rooms or too many open at once, and says nothing on a normal evening', async () => {
+    const { floodAlerts } = await import('../src/admin/alerts')
+    expect(floodAlerts(4, 12).size).toBe(0)
+    expect(floodAlerts(null, 12).size).toBe(0)
+    expect(floodAlerts(80, 12).get('flood:rooms')?.level).toBe('warn')
+    expect(floodAlerts(250, 12).get('flood:rooms')?.level).toBe('critical')
+    expect(floodAlerts(null, 400).get('flood:live')?.level).toBe('warn')
+    expect(floodAlerts(null, 1500).get('flood:live')?.level).toBe('critical')
+  })
+})

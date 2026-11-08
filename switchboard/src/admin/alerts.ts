@@ -105,3 +105,20 @@ export function ntfy(topic: string | undefined, f: typeof fetch = fetch): Notify
     }).catch(() => {})
   }
 }
+
+/**
+ * Chaotic Tails floods: a burst of new rooms, or far more rooms open at once than real play makes. Read every 5
+ * minutes (the cron), so the next flood is an alert on the phone, not a line on the Cloudflare bill. Thresholds sit
+ * far above a busy evening (a few hundred rooms a day at launch) and can be raised as the site grows.
+ */
+export const FLOOD = { roomsPer5Min: { warn: 60, critical: 200 }, liveRooms: { warn: 300, critical: 1000 } }
+
+export function floodAlerts(newRooms: number | null, liveRooms: number): Map<string, Wanted> {
+  const out = new Map<string, Wanted>()
+  const level = (n: number, t: { warn: number; critical: number }): Level | null => (n >= t.critical ? 'critical' : n >= t.warn ? 'warn' : null)
+  const a = newRooms === null ? null : level(newRooms, FLOOD.roomsPer5Min)
+  if (a) out.set('flood:rooms', { level: a, message: `Chaotic Tails: ${newRooms} new rooms in 5 minutes (usual is a handful). Pause new rooms from the console if it is not real play.` })
+  const b = level(liveRooms, FLOOD.liveRooms)
+  if (b) out.set('flood:live', { level: b, message: `Chaotic Tails: ${liveRooms} rooms open at once. Check the console for a flood.` })
+  return out
+}
