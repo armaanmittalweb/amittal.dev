@@ -193,6 +193,18 @@ export function GamesPage(s: Shared) {
       <Card title="How big rooms are" sub="Players in rooms that started a game">
         <Ranked rows={act.sizes.map(x => ({ key: x.label, label: x.label, n: x.n }))} empty="No rooms yet." />
       </Card>
+      <Card title="Content used" sub="Each pool of questions, words and prompts: how far rooms have dealt into it. Past one lap, groups start meeting items again, so grow the pools near the top." wide>
+        {g.packs?.length ? (
+          <div class="d-table-wrap"><table class="d-table">
+            <thead><tr><th scope="col">Pool</th><th scope="col">Items</th><th scope="col">Dealt</th><th scope="col">Laps</th><th scope="col" aria-label="Share of one lap" /></tr></thead>
+            <tbody>{g.packs.slice(0, 40).map(p => (
+              <tr key={p.key}><th scope="row"><code>{p.key}</code></th><td>{p.size === null ? '—' : num(p.size)}</td><td>{num(p.dealt)}</td>
+                <td>{p.laps === null ? '—' : p.laps.toFixed(2)}{p.laps !== null && p.laps >= 1 && <span class="d-tag is-warn">used up</span>}</td>
+                <td class="d-lapcell"><span class="d-ranked-bar" aria-hidden="true"><i style={{ width: `${Math.min(1, p.laps ?? 0) * 100}%` }} /></span></td></tr>
+            ))}</tbody>
+          </table></div>
+        ) : <p class="d-empty">No pools dealt yet. Sizes are recorded from 9 November 2026, as rooms deal.</p>}
+      </Card>
       <Card title="A night in numbers">
         <Facts rows={[
           ['Rooms made', 'in this range', num(act.created)],
@@ -333,6 +345,9 @@ export function HealthPage(s: Shared) {
           ['Visits with a script error', 'sessions', pc(q.errorSessions)],
           ['Games with a script error', 'games', pc(q.errorGames)],
         ]} />
+      </Card>}
+      {q && <Card title="Blocked by the security policy" sub="What browsers reported the policy stopping, by rule and host. Check here before turning ads on.">
+        <Ranked rows={(q.csp ?? []).map(x => ({ key: x.label, label: <code>{x.label}</code>, n: x.n }))} empty="Nothing blocked in this range." />
       </Card>}
       {q && <Card title="Script errors" sub="The most common, from players' browsers">
         <Ranked rows={q.topErrors.map(x => ({ key: x.label, label: <code>{x.label}</code>, n: x.n }))} empty="No script errors. Good." />

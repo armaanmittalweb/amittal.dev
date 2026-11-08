@@ -96,11 +96,15 @@ export interface GamesReport {
   quality: {
     completion: Ratio; aborted: Ratio; unfinished: Ratio; dropRate: Ratio; dropped: number; seats: number; reconnect: Ratio; rejoined: number
     errorSessions: Ratio; errorGames: Ratio; actions: number; serverErrors: number; topErrors: Count[]
+    /** What the security policy blocked (directive and host), from 9 Nov 2026. */
+    csp?: Count[]
   }
   feedback: { responses: number; responseRate?: Ratio; ratings: number; avgRating: number | null; stars: number[]; againVotes: number; again: Ratio; complaints: Text[]; ideas: Text[]; reports?: Text[] }
   /** Added 18 Oct 2026: hosts who host again, how rooms fill, where joins fail, safety, what is shared, and return rates. */
   growth?: Growth
   series: { day: string; visitors: number; players: number; newVisitors: number; rooms: number; games: number }[]
+  /** Each content pool: items in it, how far the site has dealt, and how many times round (from 9 Nov 2026). */
+  packs?: { key: string; dealt: number; size: number | null; laps: number | null }[]
 }
 
 export interface Rate { n: number; again?: number; back?: number; pct: Ratio }

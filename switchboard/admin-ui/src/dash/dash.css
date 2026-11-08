@@ -331,3 +331,6 @@ a.d-tile:hover { border-color: var(--line2); transform: translateY(-1px); transi
   .d-uptime span { height: 28px; }
   .d-uptime { gap: 2px; }
 }
+
+.d-lapcell { width: 30%; min-width: 120px; }
+.d-lapcell .d-ranked-bar { display: block; }
