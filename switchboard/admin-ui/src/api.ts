@@ -164,7 +164,17 @@ export interface SiteConfig {
   notice: { text: string; tone: 'info' | 'warn' | 'good'; until: number | null }
   paused: { on: boolean; message: string }
   gamesOff: string[]
+  /** New rooms start with "Ask to join" on (hosts can still switch it per room). */
+  askToJoin?: boolean
   updated: number
+}
+/** The live strip (games repo src/analytics.ts liveNow), asked for every few seconds. */
+export interface LiveNow {
+  now: number; today: string
+  live: { games: number; players: number; online: number; rooms: number; playing: number; waiting: number; onSite: number }
+  todaySoFar: { visitors: number; players: number; newVisitors: number; rooms: number; games: number; done: number }
+  running: { game: string; name: string; players: number; since: number | null }[]
+  events: { at: number; kind: 'visit' | 'room' | 'start' | 'end' | 'rating' | 'idea' | 'report'; text: string }[]
 }
 export interface LaunchCheck { id: string; group: 'search' | 'ads' | 'site'; label: string; ok: boolean | null; detail: string }
 
@@ -185,4 +195,5 @@ export const api = {
   site: () => call<SiteConfig>('/api/site'),
   setSite: (c: Partial<SiteConfig>) => post<SiteConfig>('/api/site', c),
   launch: () => call<{ at: number; checks: LaunchCheck[] }>('/api/launch'),
+  live: () => call<LiveNow>('/api/live'),
 }

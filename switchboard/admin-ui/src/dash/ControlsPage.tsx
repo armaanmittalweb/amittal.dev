@@ -60,6 +60,20 @@ export function ControlsPage(s: Shared) {
         </div>
       </section>
 
+      <Card title="Ask to join" sub="Whether new rooms ask the host before letting someone in" id="ask">
+        <div class="d-toggle-row">
+          <div>
+            <b>{site.askToJoin ? 'New rooms ask the host first' : 'Anyone with the link joins straight away'}</b>
+            <p class="d-fine">{site.askToJoin
+              ? 'Someone new waits at the door until the host taps Let in (or Let everyone in). Hosts can still switch it off in their own room.'
+              : 'Off by default. Hosts can still switch it on in their own room, under Room settings.'}</p>
+          </div>
+          <Toggle on={!!site.askToJoin} label="New rooms ask the host before letting someone in" disabled={!!busy}
+            onChange={v => void save('ask', { askToJoin: v }, v ? 'New rooms now ask the host before letting someone in.' : 'New rooms let people in straight away again.')} />
+        </div>
+        <p class="d-fine">Only rooms made from now on. Rooms already open keep what they have.</p>
+      </Card>
+
       <Card title="Notice" sub="One line at the top of the home page and every lobby. Players can close it." id="notice">
         <form class="d-form" onSubmit={e => { e.preventDefault(); void save('notice', { notice: { text: notice.trim(), tone, until: hours ? Date.now() + hours * 3_600_000 : null } }, notice.trim() ? 'The notice is up. Pages show it within 30 seconds.' : 'The notice is gone.') }}>
           <label class="d-field"><span>Message</span><textarea rows={3} maxLength={220} placeholder="e.g. New: 500 Bollywood questions in Trivia tonight!" value={notice} onInput={e => setNotice((e.target as HTMLTextAreaElement).value)} /><small>{notice.length}/220</small></label>

@@ -3,7 +3,7 @@ import { useState } from 'preact/hooks'
 import type { GameRow, GamesReport, Ratio, Retention } from '../api'
 import { ago, amount, compact, countryName, num, shortDay } from '../format'
 import { DayLines, Funnel, HourColumns, Meter, Ranked, Tile } from './charts'
-import type { Shared } from './Dash'
+import { Bump, type Shared } from './Dash'
 
 // The console's read-only pages. Every figure comes from the games Worker's own counters (src/analytics.ts there),
 // for the range picked at the top; each says what it counts in plain words.
@@ -61,27 +61,32 @@ export function OverviewPage(s: Shared) {
     { label: 'Games out', value: site ? String(site.gamesOff.length) : '…', tone: site?.gamesOff.length ? 'warn' : 'ok', href: '#/controls' },
   ]
   const top = g.engagement.byGame.slice(0, 8)
+  // Live numbers (every few seconds) where there are any; the minute's report until the first one comes.
+  const L = s.now?.live ?? { ...g.live, onSite: null as number | null }
+  const T = s.now?.todaySoFar
   return (
     <div class="d-grid">
       <section class="d-now is-wide" aria-label="Right now">
         <div class="d-now-main"><span class="d-kicker"><i class="d-pulse" aria-hidden="true" /> Right now</span>
           <div class="d-now-nums">
-            <span><b>{num(g.live.online ?? g.live.players)}</b>online</span>
-            <span><b>{num(g.live.playing ?? g.live.players)}</b>playing</span>
-            <span><b>{num(g.live.games)}</b>games running</span>
-            <span><b>{num(g.live.rooms ?? 0)}</b>rooms open</span>
+            <span><b><Bump v={L.online ?? L.players} /></b>in a room</span>
+            <span><b><Bump v={L.playing ?? L.players} /></b>playing</span>
+            <span><b><Bump v={L.games} /></b>games running</span>
+            <span><b><Bump v={L.rooms ?? 0} /></b>rooms open</span>
+            {L.onSite !== null && <span title="Opened a page in the last 5 minutes"><b><Bump v={L.onSite} /></b>on the site</span>}
           </div>
         </div>
         <ul class="d-chips">{chips.map(c => <li key={c.label}><a href={c.href} class={`d-chip is-${c.tone}`}><span>{c.label}</span><b>{c.value}</b></a></li>)}</ul>
       </section>
       <div class="d-tiles is-wide is-3">
-        <Tile label="Visitors today" value={num(a.dau)} trend={series(g, 'visitors')} delta={delta(today?.visitors ?? 0, avg('visitors'))} sub={`${num(a.wau)} this week`} href="#/audience" />
-        <Tile label="Players today" value={num(a.dauPlayers)} trend={series(g, 'players')} delta={delta(today?.players ?? 0, avg('players'))} sub={`${num(a.wauPlayers)} this week`} href="#/audience" />
-        <Tile label={`Rooms · ${s.days} days`} value={num(g.activation.created)} trend={series(g, 'rooms')} sub={`${pc(g.activation.rate)} started a game`} href="#/games" />
-        <Tile label={`Games played · ${s.days} days`} value={num(g.engagement.games)} trend={series(g, 'games')} sub={`${pc(g.engagement.completed)} finished`} href="#/games" />
+        <Tile label="Visitors today" value={<Bump v={T?.visitors ?? a.dau} />} trend={series(g, 'visitors')} delta={delta(today?.visitors ?? 0, avg('visitors'))} sub={`${T ? `${num(T.newVisitors)} new today · ` : ''}${num(a.wau)} this week`} href="#/audience" />
+        <Tile label="Players today" value={<Bump v={T?.players ?? a.dauPlayers} />} trend={series(g, 'players')} delta={delta(today?.players ?? 0, avg('players'))} sub={`${num(a.wauPlayers)} this week`} href="#/audience" />
+        <Tile label={`Rooms · ${s.days} days`} value={num(g.activation.created)} trend={series(g, 'rooms')} sub={`${T ? `${num(T.rooms)} today · ` : ''}${pc(g.activation.rate)} started a game`} href="#/games" />
+        <Tile label={`Games played · ${s.days} days`} value={num(g.engagement.games)} trend={series(g, 'games')} sub={`${T ? `${num(T.games)} today · ` : ''}${pc(g.engagement.completed)} finished`} href="#/games" />
         <Tile label="New people" value={num(a.newVisitors)} trend={series(g, 'newVisitors')} sub={`${num(g.funnel.played)} of them played`} href="#/growth" />
         <Tile label="Rating" value={g.feedback.avgRating === null ? '—' : `${g.feedback.avgRating.toFixed(2)} ★`} sub={`${num(g.feedback.ratings)} ratings · ${pc(g.feedback.again)} would play again`} href="#/feedback" />
       </div>
+      {s.now && <Happening now={s.now} />}
       <Card title="Visitors and players" sub="Each day: everyone who opened the site, and everyone who played a game" wide>
         <DayLines rows={g.series} keys={[{ key: 'visitors', label: 'Visitors', color: 's1' }, { key: 'players', label: 'Players', color: 's2' }]} />
       </Card>
@@ -97,6 +102,30 @@ export function OverviewPage(s: Shared) {
         </Card>
       )}
     </div>
+  )
+}
+
+/** What is going on right now: the games being played, and the latest things that happened, newest first. Both update
+ *  every few seconds with the live strip. */
+function Happening({ now }: { now: NonNullable<Shared['now']> }) {
+  return (
+    <section class="d-card is-wide d-happening" aria-labelledby="happening-h">
+      <header class="d-card-head"><div><h2 id="happening-h">Happening now</h2><p>Updates by itself every few seconds</p></div></header>
+      <div class="d-hap-grid">
+        <div>
+          <h3 class="d-hap-h">Games being played</h3>
+          {now.running.length
+            ? <ul class="d-hap-run">{now.running.map((r, i) => <li key={r.game + i}><b>{r.name}</b><span>{r.players} playing{r.since ? ` · started ${ago(r.since)}` : ''}</span></li>)}</ul>
+            : <p class="d-empty">No game is being played right now.</p>}
+        </div>
+        <div>
+          <h3 class="d-hap-h">Latest today</h3>
+          {now.events.length
+            ? <ol class="d-feed">{now.events.slice(0, 14).map((e, i) => <li key={e.at + e.kind + i} class={`is-${e.kind}`}><i aria-hidden="true" /><span>{e.text}</span><time>{ago(e.at)}</time></li>)}</ol>
+            : <p class="d-empty">Nothing yet today.</p>}
+        </div>
+      </div>
+    </section>
   )
 }
 

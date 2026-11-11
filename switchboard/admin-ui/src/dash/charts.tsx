@@ -154,7 +154,7 @@ export function Spark({ values }: { values: number[] }) {
 }
 
 /** One headline number: label, value, what it is measured against, and a trend. */
-export function Tile({ label, value, sub, trend, delta, href }: { label: string; value: string; sub?: string; trend?: number[]; delta?: { text: string; good: boolean | null }; href?: string }) {
+export function Tile({ label, value, sub, trend, delta, href }: { label: string; value: ComponentChildren; sub?: string; trend?: number[]; delta?: { text: string; good: boolean | null }; href?: string }) {
   const body = (
     <>
       <span class="d-tile-label">{label}</span>

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'preact/hooks'
-import { api, SignedOut, type AdsConfig, type GamesReport, type Overview, type SiteConfig } from '../api'
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
+import { api, SignedOut, type AdsConfig, type GamesReport, type LiveNow, type Overview, type SiteConfig } from '../api'
 import { clock } from '../format'
 import { AdsPage } from './AdsPage'
 import { ControlsPage } from './ControlsPage'
@@ -24,6 +24,8 @@ const ROUTES: { id: Route; label: string; icon: string }[] = [
 ]
 const RANGES = [7, 30, 90] as const
 const REFRESH_MS = 60_000
+/** The live strip (who is here, today so far, the latest happenings) is asked for this often while the tab is in view. */
+const LIVE_MS = 5_000
 
 const routeFromHash = (): Route => {
   const id = location.hash.replace(/^#\/?/, '') as Route
@@ -34,6 +36,8 @@ export interface Shared {
   days: number
   games: GamesReport | null
   gamesErr: string | null
+  /** Right now and today so far, fresh every few seconds (null until the first answer). */
+  now: LiveNow | null
   overview: Overview | null
   site: SiteConfig | null
   ads: AdsConfig | null
@@ -64,6 +68,11 @@ export function Dash() {
   const [site, setSite] = useState<SiteConfig | null>(null)
   const [ads, setAds] = useState<AdsConfig | null>(null)
   const [at, setAt] = useState<number | null>(null)
+  const [now, setNow] = useState<LiveNow | null>(null)
+  const [nowAt, setNowAt] = useState<number | null>(null)
+  const [nowErr, setNowErr] = useState(false)
+  const [, tick] = useState(0)
+  const fullAt = useRef(0)
   const [loading, setLoading] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [theme, setTheme] = useState(readTheme)
@@ -90,8 +99,15 @@ export function Dash() {
     if (s) setSite(s)
     if (ad) setAds(ad)
     setAt(Date.now())
+    fullAt.current = Date.now()
     setLoading(false)
   }, [days, signedOut])
+
+  // The live strip: asked for every LIVE_MS while the tab is in view (one request at a time), and at once when the tab
+  // comes back into view, when the full report is also read again if it is more than a minute old.
+  const pull = useCallback(async () => {
+    try { const r = await api.live(); setNow(r); setNowAt(Date.now()); setNowErr(false) } catch (e) { if (e instanceof SignedOut) signedOut(); else setNowErr(true) }
+  }, [signedOut])
 
   useEffect(() => {
     api.session().then(r => { setConfigured(r.configured); setSession(r.authed ? 'in' : 'out') }).catch(() => setSession('out'))
@@ -105,6 +121,27 @@ export function Dash() {
     const t = setInterval(() => { if (document.visibilityState === 'visible') void load() }, REFRESH_MS)
     return () => clearInterval(t)
   }, [session, load])
+  useEffect(() => {
+    if (session !== 'in') return
+    let stop = false, timer = 0
+    const loop = async () => {
+      if (stop) return
+      if (document.visibilityState === 'visible') await pull()
+      if (!stop) timer = window.setTimeout(loop, LIVE_MS)
+    }
+    const back = () => {
+      if (document.visibilityState !== 'visible') return
+      window.clearTimeout(timer)
+      if (Date.now() - fullAt.current > REFRESH_MS) void load()
+      void loop()
+    }
+    void loop()
+    document.addEventListener('visibilitychange', back)
+    addEventListener('online', back)
+    // "Updated 3 s ago" counts up between answers.
+    const clockT = window.setInterval(() => { if (document.visibilityState === 'visible') tick(n => n + 1) }, 1000)
+    return () => { stop = true; window.clearTimeout(timer); window.clearInterval(clockT); document.removeEventListener('visibilitychange', back); removeEventListener('online', back) }
+  }, [session, pull, load])
   useEffect(() => {
     const root = document.documentElement
     if (theme) root.dataset.theme = theme
@@ -123,8 +160,10 @@ export function Dash() {
   if (session === 'loading') return <div class="d-boot" aria-busy="true"><Mark /></div>
   if (session === 'out') return <Login configured={configured} onIn={() => setSession('in')} />
 
-  const shared: Shared = { days, games, gamesErr, overview, site, ads, setSite, toast, signedOut, reload: () => void load() }
-  const live = games?.live
+  const shared: Shared = { days, games, gamesErr, now, overview, site, ads, setSite, toast, signedOut, reload: () => { void load(); void pull() } }
+  const live = now?.live ?? games?.live
+  const fresh = nowAt !== null && !nowErr && Date.now() - nowAt < LIVE_MS * 3
+  const since = nowAt ? Math.max(0, Math.round((Date.now() - nowAt) / 1000)) : null
   const here = route === 'ads' || route === 'controls' || route === 'launch' ? null : RANGES
   const current = ROUTES.find(r => r.id === route)!
 
@@ -153,9 +192,9 @@ export function Dash() {
           <button type="button" class="d-menu" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(!menu)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" /></svg></button>
           <h1 class="d-title">{current.label}</h1>
           {live && (
-            <span class="d-live" title="People connected to a room right now">
-              <i class="d-pulse" aria-hidden="true" /><b>{live.online ?? live.players}</b> online
-              <span class="d-live-more"> · {live.playing ?? live.players} playing · {live.games} game{live.games === 1 ? '' : 's'}</span>
+            <span class={`d-live ${fresh ? '' : 'is-stale'}`} title={fresh ? 'Live: updates every 5 seconds' : 'Live numbers are not coming through; showing the last ones'}>
+              <i class="d-pulse" aria-hidden="true" /><b><Bump v={live.online ?? live.players} /></b> online
+              <span class="d-live-more"> · <Bump v={live.playing ?? live.players} /> playing · <Bump v={live.games} /> game{live.games === 1 ? '' : 's'}</span>
             </span>
           )}
           <span class="d-top-gap" />
@@ -164,7 +203,7 @@ export function Dash() {
               {here.map(d => <button key={d} type="button" aria-pressed={days === d} class={days === d ? 'is-on' : ''} onClick={() => pickDays(d)}>{d}d</button>)}
             </div>
           )}
-          <button type="button" class="d-icon-btn" onClick={() => void load()} aria-label="Refresh" title={at ? `Updated ${clock(at)}` : 'Refresh'} disabled={loading}>
+          <button type="button" class="d-icon-btn" onClick={() => { void load(); void pull() }} aria-label="Refresh" title={at ? `Updated ${clock(at)}` : 'Refresh'} disabled={loading}>
             <svg class={loading ? 'is-spin' : ''} viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h7V4z" /></svg>
           </button>
           <button type="button" class="d-icon-btn" onClick={flipTheme} aria-label="Light or dark">
@@ -182,11 +221,25 @@ export function Dash() {
           {route === 'health' && <HealthPage {...shared} />}
           {route === 'launch' && <LaunchPage {...shared} />}
         </main>
-        <footer class="d-foot">{at ? `Updated ${clock(at)} · refreshes every minute` : 'Loading…'} · times in IST · test browsers and yours are left out of every count</footer>
+        <footer class="d-foot">{fresh ? <span class="d-foot-live"><i class="d-pulse" aria-hidden="true" /> Live · updated {since === 0 ? 'just now' : `${since} s ago`}</span> : nowErr ? 'Live numbers are not coming through, trying again' : 'Connecting…'}{at ? ` · charts and totals updated ${clock(at)}, every minute` : ''} · times in IST · test browsers and yours are left out of every count</footer>
       </div>
       <div class="d-toasts" aria-live="polite">{toasts.map(t => <div key={t.id} class={`d-toast is-${t.tone}`} role={t.tone === 'err' ? 'alert' : 'status'}>{t.text}</div>)}</div>
     </div>
   )
+}
+
+/** A number that flashes for a moment when it changes, so a live change is seen. */
+export function Bump({ v, format = (x: number) => x.toLocaleString('en-IN') }: { v: number; format?: (x: number) => string }) {
+  const was = useRef(v)
+  const [hot, setHot] = useState(false)
+  useEffect(() => {
+    if (was.current === v) return
+    was.current = v
+    setHot(true)
+    const t = setTimeout(() => setHot(false), 1200)
+    return () => clearTimeout(t)
+  }, [v])
+  return <span class={hot ? 'd-bump' : undefined}>{format(v)}</span>
 }
 
 export function Mark() {

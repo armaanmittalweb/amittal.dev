@@ -197,6 +197,17 @@ export function createAdmin(deps: AdminDeps) {
     }
   })
 
+  // The console's live strip, asked for every few seconds while it is open: who is here now, today so far, and the
+  // latest happenings. Cheap on the games side (src/analytics.ts liveNow reads only the last day of rows).
+  app.get('/api/live', async c => {
+    try {
+      c.header('cache-control', 'no-store')
+      return c.json(await callInternal(c.env, 'GAMES', '/internal/live'))
+    } catch (e) {
+      return c.json({ error: `Could not read Chaotic Tails: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
+    }
+  })
+
   // The Ads tab: Game Night's box ads. Its own counts and estimate (the games Worker's analytics), with AdSense's
   // figures beside them once AdSense is connected (src/admin/adsense.ts).
   app.get('/api/ads', async c => {

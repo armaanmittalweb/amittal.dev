@@ -83,6 +83,30 @@ code { font: 500 0.8125rem/1.4 ui-monospace, 'Cascadia Mono', Menlo, monospace; 
 .d-live b { color: var(--text); }
 .d-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 0 rgba(12, 163, 12, 0.6); animation: d-pulse 2s infinite; flex: none; }
 @keyframes d-pulse { 70% { box-shadow: 0 0 0 8px rgba(12, 163, 12, 0); } 100% { box-shadow: 0 0 0 0 rgba(12, 163, 12, 0); } }
+/* Live numbers: a stale strip greys its dot; a number that just changed flashes the brand colour for a moment. */
+.d-live.is-stale .d-pulse { background: var(--muted); animation: none; box-shadow: none; }
+.d-bump { display: inline-block; color: var(--brand-ink); animation: d-bump 1.2s ease-out; }
+@keyframes d-bump { 0% { transform: scale(1.18); } 30% { transform: scale(1); } }
+.d-foot-live { display: inline-flex; align-items: center; gap: 6px; }
+@media (prefers-reduced-motion: reduce) { .d-bump, .d-pulse { animation: none; } }
+/* Happening now: games being played beside a feed of the latest things, newest first. */
+.d-hap-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+@media (min-width: 760px) { .d-hap-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); } }
+.d-hap-h { margin: 0 0 8px; font-size: 0.75rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.d-hap-run { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.d-hap-run li { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--card2); }
+.d-hap-run li span { color: var(--text2); font-size: 0.875rem; white-space: nowrap; }
+.d-feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.d-feed li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: baseline; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 0.875rem; }
+.d-feed li:first-child { border-top: 0; }
+.d-feed li i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); align-self: center; }
+.d-feed li.is-start i, .d-feed li.is-room i { background: var(--brand); }
+.d-feed li.is-end i { background: var(--good); }
+.d-feed li.is-visit i { background: var(--s1); }
+.d-feed li.is-rating i, .d-feed li.is-idea i { background: var(--warn); }
+.d-feed li.is-report i { background: var(--bad); }
+.d-feed li span { overflow-wrap: anywhere; }
+.d-feed li time { color: var(--muted); font-size: 0.8125rem; white-space: nowrap; }
 .d-top-gap { flex: 1; }
 .d-seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
 .d-seg button { min-height: 32px; min-width: 44px; padding: 0 12px; border: 0; border-radius: 9px; background: none; color: var(--text2); font-weight: 600; cursor: pointer; }
@@ -334,3 +358,7 @@ a.d-tile:hover { border-color: var(--line2); transform: translateY(-1px); transi
 
 .d-lapcell { width: 30%; min-width: 120px; }
 .d-lapcell .d-ranked-bar { display: block; }
+/* A single switch with its explanation beside it (Controls: Ask to join). */
+.d-toggle-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.d-toggle-row b { display: block; margin-bottom: 4px; }
+.d-toggle-row .d-fine { margin: 0; }
