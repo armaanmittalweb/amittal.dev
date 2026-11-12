@@ -4,15 +4,20 @@ import { clock } from '../format'
 import { AdsPage } from './AdsPage'
 import { ControlsPage } from './ControlsPage'
 import { LaunchPage } from './LaunchPage'
+import { LivePage } from './LivePage'
+import { LogsPage } from './LogsPage'
+import { Drawer, GAME_NAMES, type Panel } from './Panels'
 import { AudiencePage, FeedbackPage, GamesPage, GrowthPage, HealthPage, OverviewPage } from './pages'
 
 // dash.chaotictails.com: Chaotic Tails' console. The same sign-in and data as the Switchboard (admin.amittal.dev),
 // laid out for running one site: what is happening now, who comes and from where, what they play, what they say,
 // and every switch the site has (ads, a notice, pausing new rooms, games out, search engines).
 
-export type Route = 'overview' | 'audience' | 'games' | 'growth' | 'feedback' | 'ads' | 'controls' | 'health' | 'launch'
+export type Route = 'overview' | 'live' | 'logs' | 'audience' | 'games' | 'growth' | 'feedback' | 'ads' | 'controls' | 'health' | 'launch'
 const ROUTES: { id: Route; label: string; icon: string }[] = [
   { id: 'overview', label: 'Overview', icon: 'M4 13h6V4H4zm10 7h6v-9h-6zM4 20h6v-4H4zm10-11h6V4h-6z' },
+  { id: 'live', label: 'Live', icon: 'M12 10a2 2 0 1 0 2 2 2 2 0 0 0-2-2zm-4.2-2.8L6.4 5.8a8.5 8.5 0 0 0 0 12.4l1.4-1.4a6.5 6.5 0 0 1 0-9.6zm8.4 0a6.5 6.5 0 0 1 0 9.6l1.4 1.4a8.5 8.5 0 0 0 0-12.4zM9.2 9.6 7.8 8.2a5.4 5.4 0 0 0 0 7.6l1.4-1.4a3.4 3.4 0 0 1 0-4.8zm5.6 0a3.4 3.4 0 0 1 0 4.8l1.4 1.4a5.4 5.4 0 0 0 0-7.6z' },
+  { id: 'logs', label: 'Logs', icon: 'M4 5h2v2H4zm4 0h12v2H8zm-4 6h2v2H4zm4 0h12v2H8zm-4 6h2v2H4zm4 0h12v2H8z' },
   { id: 'audience', label: 'Audience', icon: 'M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm0 2c-2.7 0-6 1.3-6 3.5V19h12v-2.5C14 14.3 10.7 13 8 13zm8 0c-.3 0-.7 0-1.1.1A4.2 4.2 0 0 1 16 16.5V19h6v-2.5c0-2.2-3.3-3.5-6-3.5z' },
   { id: 'games', label: 'Games', icon: 'M7 6h10a5 5 0 0 1 0 10h-1l-2 2h-4l-2-2H7A5 5 0 0 1 7 6zm0 3v2H5v2h2v2h2v-2h2v-2H9V9zm9 1a1 1 0 1 0 1 1 1 1 0 0 0-1-1zm2 2a1 1 0 1 0 1 1 1 1 0 0 0-1-1z' },
   { id: 'growth', label: 'Growth', icon: 'M3 17l6-6 4 4 7-7v5h2V4h-9v2h5l-5 5-4-4-8 8z' },
@@ -28,7 +33,8 @@ const REFRESH_MS = 60_000
 const LIVE_MS = 5_000
 
 const routeFromHash = (): Route => {
-  const id = location.hash.replace(/^#\/?/, '') as Route
+  // A page's own filters come after a ? (#/logs?q=riya), and do not change which page it is.
+  const id = location.hash.replace(/^#\/?/, '').split('?')[0] as Route
   return ROUTES.some(r => r.id === id) ? id : 'overview'
 }
 
@@ -45,6 +51,8 @@ export interface Shared {
   toast: (text: string, tone?: 'ok' | 'err') => void
   signedOut: () => void
   reload: () => void
+  /** Opens the side panel on a room or a browser (from Live, Logs, or another panel). */
+  open: (p: Panel) => void
 }
 
 type Toast = { id: number; text: string; tone: 'ok' | 'err' }
@@ -77,6 +85,10 @@ export function Dash() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [theme, setTheme] = useState(readTheme)
   const [menu, setMenu] = useState(false)
+  const [panels, setPanels] = useState<Panel[]>([])
+  const open = useCallback((p: Panel) => setPanels(st => [...st.filter(x => JSON.stringify(x) !== JSON.stringify(p)), p].slice(-6)), [])
+  const closePanels = useCallback(() => setPanels([]), [])
+  const backPanel = useCallback(() => setPanels(st => st.slice(0, -1)), [])
 
   const toast = useCallback((text: string, tone: Toast['tone'] = 'ok') => {
     const id = ++seq
@@ -94,7 +106,7 @@ export function Dash() {
       api.site().catch(fail),
       api.adsSettings().catch(fail),
     ])
-    if (g) { setGames(g); setGamesErr(null) }
+    if (g) { setGames(g); setGamesErr(null); Object.assign(GAME_NAMES, g.names ?? {}) }
     if (o) setOverview(o)
     if (s) setSite(s)
     if (ad) setAds(ad)
@@ -111,7 +123,9 @@ export function Dash() {
 
   useEffect(() => {
     api.session().then(r => { setConfigured(r.configured); setSession(r.authed ? 'in' : 'out') }).catch(() => setSession('out'))
-    const onHash = () => { setRoute(routeFromHash()); setMenu(false); window.scrollTo(0, 0) }
+    let was = routeFromHash()
+    // A page changing only its own filters (#/logs?…) stays where it is; moving to another page starts at the top.
+    const onHash = () => { const r = routeFromHash(); setRoute(r); setMenu(false); setPanels([]); if (r !== was) window.scrollTo(0, 0); was = r }
     addEventListener('hashchange', onHash)
     return () => removeEventListener('hashchange', onHash)
   }, [])
@@ -160,11 +174,11 @@ export function Dash() {
   if (session === 'loading') return <div class="d-boot" aria-busy="true"><Mark /></div>
   if (session === 'out') return <Login configured={configured} onIn={() => setSession('in')} />
 
-  const shared: Shared = { days, games, gamesErr, now, overview, site, ads, setSite, toast, signedOut, reload: () => { void load(); void pull() } }
+  const shared: Shared = { days, games, gamesErr, now, overview, site, ads, setSite, toast, signedOut, reload: () => { void load(); void pull() }, open }
   const live = now?.live ?? games?.live
   const fresh = nowAt !== null && !nowErr && Date.now() - nowAt < LIVE_MS * 3
   const since = nowAt ? Math.max(0, Math.round((Date.now() - nowAt) / 1000)) : null
-  const here = route === 'ads' || route === 'controls' || route === 'launch' ? null : RANGES
+  const here = route === 'ads' || route === 'controls' || route === 'launch' || route === 'live' || route === 'logs' ? null : RANGES
   const current = ROUTES.find(r => r.id === route)!
 
   return (
@@ -177,6 +191,7 @@ export function Dash() {
             <a key={r.id} href={`#/${r.id}`} class={r.id === route ? 'is-on' : ''} aria-current={r.id === route ? 'page' : undefined}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d={r.icon} /></svg>{r.label}
               {r.id === 'controls' && site && (site.paused.on || site.gamesOff.length > 0) && <i class="d-nav-dot" title="A switch is on" />}
+              {r.id === 'live' && live && (live.online ?? 0) > 0 && <i class="d-nav-n" title="People in rooms now">{live.online}</i>}
             </a>
           ))}
         </nav>
@@ -212,6 +227,8 @@ export function Dash() {
         </header>
         <main id="d-main" class="d-main" tabIndex={-1}>
           {route === 'overview' && <OverviewPage {...shared} />}
+          {route === 'live' && <LivePage {...shared} />}
+          {route === 'logs' && <LogsPage {...shared} />}
           {route === 'audience' && <AudiencePage {...shared} />}
           {route === 'games' && <GamesPage {...shared} />}
           {route === 'growth' && <GrowthPage {...shared} />}
@@ -223,6 +240,7 @@ export function Dash() {
         </main>
         <footer class="d-foot">{fresh ? <span class="d-foot-live"><i class="d-pulse" aria-hidden="true" /> Live · updated {since === 0 ? 'just now' : `${since} s ago`}</span> : nowErr ? 'Live numbers are not coming through, trying again' : 'Connecting…'}{at ? ` · charts and totals updated ${clock(at)}, every minute` : ''} · times in IST · test browsers and yours are left out of every count</footer>
       </div>
+      {panels.length > 0 && <Drawer stack={panels} s={shared} close={closePanels} back={backPanel} />}
       <div class="d-toasts" aria-live="polite">{toasts.map(t => <div key={t.id} class={`d-toast is-${t.tone}`} role={t.tone === 'err' ? 'alert' : 'status'}>{t.text}</div>)}</div>
     </div>
   )

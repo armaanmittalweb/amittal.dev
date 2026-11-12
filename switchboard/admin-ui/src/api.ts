@@ -166,6 +166,8 @@ export interface SiteConfig {
   gamesOff: string[]
   /** New rooms start with "Ask to join" on (hosts can still switch it per room). */
   askToJoin?: boolean
+  /** Browsers kept out of every room, from the Live and Logs pages. */
+  blocked?: { vid: string; name: string; note: string; at: number }[]
   updated: number
 }
 /** The live strip (games repo src/analytics.ts liveNow), asked for every few seconds. */
@@ -179,6 +181,44 @@ export interface LiveNow {
   events: { at: number; kind: 'visit' | 'room' | 'start' | 'end' | 'rating' | 'idea' | 'report'; text: string }[]
 }
 export interface LaunchCheck { id: string; group: 'search' | 'ads' | 'site'; label: string; ok: boolean | null; detail: string }
+
+// The Live and Logs pages (games repo src/logs.ts, through /api/ct/*).
+export type LogKind = 'room' | 'join' | 'line' | 'game' | 'mod' | 'visit' | 'feedback' | 'error' | 'share' | 'daily' | 'admin'
+export type LogLevel = 'info' | 'good' | 'warn' | 'error'
+export interface LogLine {
+  id: number; at: number; kind: LogKind; level: LogLevel; code: string | null; rid: string | null; vid: string | null
+  who: string | null; game: string | null; text: string; /** JSON, as stored. */ data: string | null; x: boolean
+}
+export interface LogPage {
+  lines: LogLine[]; latest: number; more: boolean
+  kinds?: Partial<Record<LogKind, number>>; levels?: Partial<Record<LogLevel, number>>
+  hist?: { from: number; to: number; size: number; buckets: { at: number; info: number; good: number; warn: number; error: number }[] }
+}
+export interface RoomMember { id: string; name: string; face: string | null; vid: string | null; online: boolean; host: boolean; playing: boolean; pts: number; games: number; x: boolean; joined: number }
+export interface RoomInfo {
+  code: string; host: string | null; phase: 'lobby' | 'game' | 'results'; game: string | null; gameN: number; began: number | null
+  night: { at: number; of: number; kind: string } | null; ask: boolean; locked: boolean; screens: number
+  waiting: { name: string; at: number }[]; members: RoomMember[]
+}
+export interface LiveRoom { rid: string; phase: string; at: number; created: number | null; x: boolean; games: number; done: number; info: RoomInfo | null }
+export interface Browser { country: string; device: string; x: boolean }
+export interface LiveRooms { now: number; rooms: LiveRoom[]; browsers: Record<string, Browser>; names: Record<string, string> }
+export interface RoomDetail extends RoomInfo {
+  rid: string | null; touched: number; quick: boolean; relaxed: boolean; watch: boolean; adFree: boolean
+  history: { id: string; at: number; winners: string[] }[]
+  plan: { kind: string; games: string[]; at: number; done: boolean; table: { name: string; pts: number }[] } | null
+  inst: { id: string; n: number; players: string[]; intro: boolean; paused: boolean; startedAt: number | null; chosen: number | null; moves: number } | null
+  bans: { name: string; at: number }[]; chatLines: number
+}
+/** One browser, last 7 days only: the names it used, its rooms and lines (games repo src/logs.ts person). */
+export interface Person {
+  vid: string; now: number; x: boolean
+  rooms: { rid: string; joined: number; code: string | null; made: number; games: number }[]
+  names: string[]
+  lines: LogLine[]
+  blocked: { vid: string; name: string; note: string; at: number } | null
+}
+export type RoomAction = { a: 'notice'; text: string } | { a: 'kick' | 'ban' | 'block' | 'host'; id: string; note?: string } | { a: 'end' | 'close' } | { a: 'lock' | 'ask'; on: boolean }
 
 export const api = {
   session: () => call<{ authed: boolean; configured: boolean }>('/api/session'),
@@ -198,4 +238,15 @@ export const api = {
   setSite: (c: Partial<SiteConfig>) => post<SiteConfig>('/api/site', c),
   launch: () => call<{ at: number; checks: LaunchCheck[] }>('/api/launch'),
   live: () => call<LiveNow>('/api/live'),
+  rooms: () => call<LiveRooms>('/api/ct/rooms'),
+  room: (code: string) => call<{ room: RoomDetail; lines: LogLine[] }>(`/api/ct/room/${code}`),
+  roomAct: (code: string, a: RoomAction) => post<{ ok: true; room?: RoomDetail; closed?: boolean }>(`/api/ct/room/${code}`, a),
+  logs: (q: Record<string, string | number | undefined>) => {
+    const p = new URLSearchParams()
+    for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '') p.set(k, String(v))
+    return call<LogPage>(`/api/ct/logs?${p}`)
+  },
+  person: (vid: string) => call<Person>(`/api/ct/person/${vid}`),
+  personAct: (vid: string, a: 'test' | 'untest' | 'block' | 'unblock', extra: { name?: string; note?: string } = {}) => post<Person>(`/api/ct/person/${vid}`, { a, ...extra }),
+  broadcast: (text: string) => post<{ sent: number; rooms: number }>('/api/ct/broadcast', { text }),
 }

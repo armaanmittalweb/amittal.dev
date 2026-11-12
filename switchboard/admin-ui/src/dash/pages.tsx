@@ -110,7 +110,7 @@ export function OverviewPage(s: Shared) {
 function Happening({ now }: { now: NonNullable<Shared['now']> }) {
   return (
     <section class="d-card is-wide d-happening" aria-labelledby="happening-h">
-      <header class="d-card-head"><div><h2 id="happening-h">Happening now</h2><p>Updates by itself every few seconds</p></div></header>
+      <header class="d-card-head"><div><h2 id="happening-h">Happening now</h2><p>Updates by itself every few seconds</p></div><span class="d-row"><a class="d-more" href="#/live">Who is in which room →</a><a class="d-more" href="#/logs">Full log →</a></span></header>
       <div class="d-hap-grid">
         <div>
           <h3 class="d-hap-h">Games being played</h3>

@@ -128,6 +128,23 @@ export function ControlsPage(s: Shared) {
         <button type="button" class="d-btn" disabled={!!busy} onClick={() => void act('check-now')}>{busy === 'check-now' ? 'Checking…' : 'Check now'}</button>
       </Card>
 
+      <Card title="Blocked browsers" sub="Kept out of every room. Block someone from their room on the Live page, or from a line on the Logs page." id="blocked">
+        {(site.blocked ?? []).length ? (
+          <ul class="d-plist">{[...(site.blocked ?? [])].reverse().map(b => (
+            <li key={b.vid}>
+              <span><b>{b.name || 'No name'}</b><small>{b.note ? `${b.note} · ` : ''}blocked {ago(b.at)} · <code>{b.vid.slice(0, 10)}</code></small></span>
+              <span class="d-plist-act">
+                <button type="button" class="d-btn is-ghost is-sm" onClick={() => s.open({ kind: 'person', vid: b.vid })}>Open</button>
+                <button type="button" class="d-btn is-ghost is-sm" disabled={!!busy} onClick={async () => {
+                  setBusy('unblock')
+                  try { await api.personAct(b.vid, 'unblock'); s.setSite(await api.site()); s.toast(`${b.name || 'That browser'} can join rooms again`) } catch (e) { s.toast(e instanceof Error ? e.message : 'Could not unblock', 'err') } finally { setBusy(null) }
+                }}>Unblock</button>
+              </span>
+            </li>
+          ))}</ul>
+        ) : <p class="d-empty">Nobody is blocked.</p>}
+      </Card>
+
       <Card title="Delete a person's data" sub="When someone asks through the contact page. They find their browser id on the privacy page.">
         <form class="d-form" onSubmit={forget}>
           <label class="d-field"><span>Browser id</span><input value={vid} placeholder="6 to 40 letters and digits" onInput={e => setVid((e.target as HTMLInputElement).value)} /></label>

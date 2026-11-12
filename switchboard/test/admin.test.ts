@@ -211,6 +211,39 @@ describe('resources', () => {
     expect(asked).toEqual(['/dash', '/dash', '/assets/app.js', '/'])
   })
 
+  it('passes the Live and Logs pages through to Chaotic Tails: signed in, from a console, ids checked, its own answers kept', async () => {
+    const calls: string[] = []
+    const GAMES = {
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+        const req = new Request(input, init), u = new URL(req.url)
+        calls.push(`${req.method} ${u.pathname}${u.search}`)
+        if (req.headers.get('x-internal-key') !== 'ik') return new Response('{}', { status: 404 })
+        if (u.pathname === '/internal/room' && req.method === 'POST') return Response.json({ error: 'That player is not in this room any more' }, { status: 404 })
+        return Response.json({ ok: true })
+      },
+    } as unknown as Fetcher
+    const s = setup({ GAMES })
+    expect((await s.admin.request('/api/ct/rooms', {}, s.env)).status).toBe(401)
+    const cookie = await login(s)
+    const get = (path: string) => s.admin.request(path, { headers: { cookie } }, s.env)
+    const post = (path: string, body: unknown, origin = ORIGIN) => s.admin.request(path, { method: 'POST', headers: { cookie, origin, 'content-type': 'application/json' }, body: JSON.stringify(body) }, s.env)
+    expect((await get('/api/ct/rooms')).status).toBe(200)
+    expect((await get('/api/ct/logs?q=riya&kinds=join,game&evil=1')).status).toBe(200)
+    expect((await get('/api/ct/room/abcde')).status).toBe(200)
+    expect((await get('/api/ct/room/ABCDEF')).status).toBe(400)
+    expect((await post('/api/ct/room/ABCDE', { a: 'kick', id: 'x' }, 'https://evil.example')).status).toBe(403)
+    const kick = await post('/api/ct/room/ABCDE', { a: 'kick', id: 'x' })
+    expect(kick.status).toBe(404)
+    expect(await kick.json()).toEqual({ error: 'That player is not in this room any more' })
+    expect((await post('/api/ct/person/abc123def', { a: 'test' })).status).toBe(200)
+    expect((await post('/api/ct/person/a', { a: 'test' })).status).toBe(400)
+    expect((await post('/api/ct/broadcast', { text: 'Back in five minutes' })).status).toBe(200)
+    expect(calls).toEqual([
+      'GET /internal/rooms', 'GET /internal/logs?kinds=join%2Cgame&q=riya', 'GET /internal/room?code=ABCDE', 'POST /internal/room?code=ABCDE',
+      'POST /internal/person?vid=abc123def', 'POST /internal/broadcast',
+    ])
+  })
+
   it('asks Game Night to delete one browser id, signed in only, and only a real-looking id', async () => {
     const calls: string[] = []
     const s = setup({ GAMES: fakeWorker({ deleted: 3 } as unknown as Record<string, number>, calls) })

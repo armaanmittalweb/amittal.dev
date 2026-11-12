@@ -43,6 +43,26 @@ function fromDashboard(c: Context<Env>) {
   }
 }
 
+/**
+ * Asks the games Worker (Chaotic Tails) over its binding and answers with what it said, status and all. Unlike
+ * callInternal, an error's own words are kept: the console shows them as they are.
+ */
+async function passGames(c: Context<Env>, path: string, method = 'GET', body?: unknown) {
+  const g = c.env.GAMES
+  if (!g || !c.env.INTERNAL_KEY) return c.json({ error: 'The games service binding or INTERNAL_KEY is not set' }, 502)
+  try {
+    const res = await g.fetch(`https://games.internal${path}`, {
+      method, headers: { 'x-internal-key': c.env.INTERNAL_KEY, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+    const text = await res.text()
+    if (!text.startsWith('{') && !text.startsWith('[')) return c.json({ error: `Chaotic Tails answered ${res.status}` }, 502)
+    return new Response(text, { status: res.status, headers: { 'content-type': 'application/json' } })
+  } catch (e) {
+    return c.json({ error: `Could not reach Chaotic Tails: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
+  }
+}
+
 /** The last few checks per service, newest first. */
 async function recentChecks(sql: Sql, now: number) {
   const rows = await sql.all<{ service: string; at: number; ok: number; ms: number | null; code: number | null }>(
@@ -206,6 +226,44 @@ export function createAdmin(deps: AdminDeps) {
     } catch (e) {
       return c.json({ error: `Could not read Chaotic Tails: ${e instanceof Error ? e.message : 'no answer'}` }, 502)
     }
+  })
+
+  // The console's Live and Logs pages (games repo src/logs.ts): every room and who is in it, one room read live and
+  // acted on, the activity log, one browser, and a message to every open room. Answers pass through as they are, so
+  // the games Worker's own reasons ("That player is not in this room any more") reach the page.
+  app.get('/api/ct/rooms', c => passGames(c, '/internal/rooms'))
+  app.get('/api/ct/room/:code', async c => {
+    const code = c.req.param('code').toUpperCase()
+    return /^[A-Z0-9]{5}$/.test(code) ? passGames(c, `/internal/room?code=${code}`) : c.json({ error: 'That is not a room code' }, 400)
+  })
+  app.post('/api/ct/room/:code', async c => {
+    const code = c.req.param('code').toUpperCase()
+    if (!/^[A-Z0-9]{5}$/.test(code)) return c.json({ error: 'That is not a room code' }, 400)
+    const body = await c.req.json().catch(() => null)
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return c.json({ error: 'Could not read that' }, 400)
+    return passGames(c, `/internal/room?code=${code}`, 'POST', body)
+  })
+  app.get('/api/ct/logs', async c => {
+    const allowed = ['after', 'before', 'from', 'to', 'kinds', 'levels', 'code', 'rid', 'vid', 'who', 'game', 'q', 'tests', 'limit']
+    const p = new URLSearchParams()
+    for (const k of allowed) { const v = c.req.query(k); if (v) p.set(k, v.slice(0, 200)) }
+    return passGames(c, `/internal/logs?${p}`)
+  })
+  app.get('/api/ct/person/:vid', async c => {
+    const vid = c.req.param('vid')
+    return /^[a-z0-9]{6,40}$/i.test(vid) ? passGames(c, `/internal/person?vid=${vid}`) : c.json({ error: 'That is not a browser id' }, 400)
+  })
+  app.post('/api/ct/person/:vid', async c => {
+    const vid = c.req.param('vid')
+    if (!/^[a-z0-9]{6,40}$/i.test(vid)) return c.json({ error: 'That is not a browser id' }, 400)
+    const body = await c.req.json().catch(() => null)
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return c.json({ error: 'Could not read that' }, 400)
+    return passGames(c, `/internal/person?vid=${vid}`, 'POST', body)
+  })
+  app.post('/api/ct/broadcast', async c => {
+    const body = await c.req.json().catch(() => null)
+    if (!body || typeof body !== 'object') return c.json({ error: 'Could not read that' }, 400)
+    return passGames(c, '/internal/broadcast', 'POST', body)
   })
 
   // The Ads tab: Game Night's box ads. Its own counts and estimate (the games Worker's analytics), with AdSense's
