@@ -175,7 +175,7 @@ export const PROJECTS: Project[] = [
   { id: 'gamenight', name: 'Game Night', tag: 'Real-time party games for friend groups', cat: 'interface', year: '2026',
     tags: ['TypeScript', 'Cloudflare Workers', 'Durable Objects', 'WebSockets', 'Real-time', 'Preact', 'Game design'],
     sourceNote: 'SOURCE IS PRIVATE',
-    live: 'https://games.amittal.dev',
+    live: 'https://chaotictails.com',
     l1: 'Free party games played on everyone\'s own phone: one person opens a room, friends join with a five-letter code, and 25 games, from Draw & Guess and Imposter to Trivia and a live Wordle race, play out in real time for 2 to 30 players.',
     l2: 'Each room is a Cloudflare Durable Object named by its code. It holds the players, chat and game in memory, keeps every phone\'s WebSocket, and is the one place that orders moves when two players act at once. A move arrives as a message, the room checks it against that game\'s rules, and each phone is sent only what its player may see, so answers and hidden roles never reach the wrong phone. A game night plans several games to fit the room\'s size and mood, carries points between them and can run as a knockout tournament. The page is Preact and htm, served from versioned static assets so an update never mixes old and new code. Rooms delete themselves a day after they were last used; a second Durable Object keeps the site\'s counts for a private dashboard.',
     pipeline: ['Room code', 'Edge Worker', 'Room Durable Object', 'Game rules', 'Per-player views', 'Phones'],
