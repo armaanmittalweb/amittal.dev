@@ -362,3 +362,9 @@ a.d-tile:hover { border-color: var(--line2); transform: translateY(-1px); transi
 .d-toggle-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .d-toggle-row b { display: block; margin-bottom: 4px; }
 .d-toggle-row .d-fine { margin: 0; }
+/* Controls: the ways to test without being counted. */
+.d-test { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; }
+.d-test li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.d-test li:first-child { border-top: 0; }
+.d-test li .d-fine { margin: 2px 0 0; }
+.d-test .d-btn { flex: none; }

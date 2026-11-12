@@ -174,6 +174,8 @@ export interface LiveNow {
   live: { games: number; players: number; online: number; rooms: number; playing: number; waiting: number; onSite: number }
   todaySoFar: { visitors: number; players: number; newVisitors: number; rooms: number; games: number; done: number }
   running: { game: string; name: string; players: number; since: number | null }[]
+  /** Browsers marked as test ones (?me=1, test tools): left out of every number. */
+  testBrowsers?: number
   events: { at: number; kind: 'visit' | 'room' | 'start' | 'end' | 'rating' | 'idea' | 'report'; text: string }[]
 }
 export interface LaunchCheck { id: string; group: 'search' | 'ads' | 'site'; label: string; ok: boolean | null; detail: string }

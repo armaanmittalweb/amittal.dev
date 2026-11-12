@@ -10,6 +10,14 @@ import { Card } from './pages'
 
 const TONES: { value: SiteConfig['notice']['tone']; label: string }[] = [{ value: 'info', label: 'News' }, { value: 'good', label: 'Good news' }, { value: 'warn', label: 'Warning' }]
 const PAUSE_DEFAULT = 'New rooms are paused for a few minutes while we fix something. Rooms already open still work.'
+/** The ways to test without being counted (the games repo's public/js/track.js reads ?me=). */
+const TEST_LINKS = [
+  { who: 'Your own phone or laptop', how: 'Open this once in each browser you test from. It stays marked until you undo it.', link: 'https://chaotictails.com/?me=1' },
+  { who: 'Friends helping you test', how: 'Add ?me=1 to the end of the room link you send them, like chaotictails.com/r/ABCDE?me=1. Their phone is marked before it joins.', link: '?me=1 on any link' },
+  { who: 'Automated checks', how: 'Browsers driven by test tools (Playwright, Selenium) mark themselves. Nothing to do.', link: 'automatic' },
+  { who: 'Count a browser again', how: 'Open this in it.', link: 'https://chaotictails.com/?me=0' },
+  { who: 'Something risky', how: 'Try it on the test copy first: it has its own counts and never shows here.', link: 'https://games-preprod.amittal.dev/' },
+]
 const HOURS = [{ v: 0, l: 'Until I remove it' }, { v: 2, l: '2 hours' }, { v: 12, l: '12 hours' }, { v: 24, l: '1 day' }, { v: 72, l: '3 days' }, { v: 168, l: '1 week' }]
 
 export function ControlsPage(s: Shared) {
@@ -72,6 +80,18 @@ export function ControlsPage(s: Shared) {
             onChange={v => void save('ask', { askToJoin: v }, v ? 'New rooms now ask the host before letting someone in.' : 'New rooms let people in straight away again.')} />
         </div>
         <p class="d-fine">Only rooms made from now on. Rooms already open keep what they have.</p>
+      </Card>
+
+      <Card title="Testing" sub="Test anything on the live site without it showing in these numbers" id="testing">
+        <ul class="d-test">
+          {TEST_LINKS.map(t => (
+            <li key={t.link}>
+              <div><b>{t.who}</b><p class="d-fine">{t.how}</p></div>
+              {t.link.startsWith('http') && <button type="button" class="d-btn is-ghost" onClick={() => { navigator.clipboard?.writeText(t.link).then(() => s.toast('Link copied.'), () => s.toast(t.link)) }}>Copy link</button>}
+            </li>
+          ))}
+        </ul>
+        <p class="d-fine">{typeof s.now?.testBrowsers === 'number' ? `${s.now.testBrowsers.toLocaleString('en-IN')} browsers are left out of the counts right now.` : 'Counting test browsers…'} A test browser's visits, rooms, games and ratings never reach any number here. A room made by one is left out of the room and game numbers even if others join it, but anyone in it without ?me=1 still counts as a visitor.</p>
       </Card>
 
       <Card title="Notice" sub="One line at the top of the home page and every lobby. Players can close it." id="notice">
