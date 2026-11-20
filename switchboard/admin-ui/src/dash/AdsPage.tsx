@@ -80,6 +80,7 @@ export function AdsPage(s: Shared) {
 
       <Card title="Rules">
         <ul class="d-toggles">
+          <li><span>Ads in rooms and on the home page<small>Leave off until AdSense approves the site: until then boxes go only on guides, articles and the daily</small></span><Toggle on={!!c.rooms} label="Ads in rooms and on the home page" disabled={busy} onChange={v => void save({ rooms: v })} /></li>
           <li><span>No ads in a host's first room<small>A new host's first night stays clean</small></span><Toggle on={c.firstNightFree} label="No ads in a host's first room" disabled={busy} onChange={v => void save({ firstNightFree: v })} /></li>
         </ul>
         <form class="d-form" onSubmit={e => { e.preventDefault(); void save({ split: c.split, ecpm: c.ecpm }) }}>

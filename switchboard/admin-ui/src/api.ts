@@ -135,7 +135,7 @@ const post = <T>(path: string, body: unknown = {}) => call<T>(path, { method: 'P
 // Game Night's box ads (src/ads.ts in the games repo, src/admin/adsense.ts here).
 export interface AdsConfig {
   mode: 'off' | 'test' | 'live'; client: string; units: { box: string; large: string; tall: string }; off: string[]
-  split: number; firstNightFree: boolean; ecpm: { in: number; other: number }; updated: number
+  split: number; rooms?: boolean; firstNightFree: boolean; ecpm: { in: number; other: number }; updated: number
 }
 export interface AdTot { req: number; fill: number; empty: number; view: number; click: number; usd: number }
 interface SplitSide { rooms: number; started: number; gamesPerRoom: number | null; second: number | null }

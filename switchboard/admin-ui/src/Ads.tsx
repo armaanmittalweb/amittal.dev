@@ -91,6 +91,7 @@ function Settings({ cfg, places, onSaved }: { cfg: AdsConfig; places: AdsReport[
           {field('box', 'Box unit (300×250)')}{field('large', 'Large box unit (336×280)')}{field('tall', 'Side box unit (300×600)')}
           <button type="submit" disabled={busy}>Save ids</button>
         </form>
+        <div class="ads-row"><span>Ads in rooms and on the home page (leave off until AdSense approves)</span><Switch on={!!c.rooms} label="Ads in rooms and on the home page" disabled={busy} onChange={v => void save({ rooms: v })} /></div>
         <div class="ads-row"><span>No ads in a host's first room</span><Switch on={c.firstNightFree} label="No ads in a host's first room" disabled={busy} onChange={v => void save({ firstNightFree: v })} /></div>
         <form class="ads-ids" onSubmit={e => { e.preventDefault(); void save({ split: c.split, ecpm: c.ecpm }) }}>
           <label>Rooms with ads (%)<input type="number" min={0} max={100} value={c.split} onInput={e => setC({ ...c, split: Number((e.target as HTMLInputElement).value) })} /></label>
