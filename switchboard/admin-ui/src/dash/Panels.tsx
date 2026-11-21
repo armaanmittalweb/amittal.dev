@@ -197,6 +197,7 @@ function RoomPanel({ code, s }: { code: string; s: Shared }) {
           {r.phase === 'game' && <button type="button" class="d-btn is-ghost" disabled={!!busy} onClick={() => act({ a: 'end' }, 'The game was stopped', `Stop ${gameName(r.game)} for everyone in room ${code}?`)}>Stop the game</button>}
           <button type="button" class="d-btn is-ghost" disabled={!!busy} onClick={() => act({ a: 'lock', on: !r.locked }, r.locked ? 'Unlocked' : 'Locked: nobody new can join')}>{r.locked ? 'Unlock' : 'Lock the room'}</button>
           <button type="button" class="d-btn is-ghost" disabled={!!busy} onClick={() => act({ a: 'ask', on: !r.ask }, r.ask ? 'Anyone with the link can join again' : 'New people now wait at the door')}>{r.ask ? 'Stop asking at the door' : 'Ask at the door'}</button>
+          <a class="d-btn is-ghost" href={`#/custom?code=${code}`}>{r.custom ? 'Custom settings' : 'Make it a custom room'}</a>
           <button type="button" class="d-btn is-danger" disabled={!!busy} onClick={() => act({ a: 'close' }, `Room ${code} is closed`, `Close room ${code}? Everyone in it is sent out and the room is deleted. This cannot be undone.`)}>Close the room</button>
         </div>
       </Section>

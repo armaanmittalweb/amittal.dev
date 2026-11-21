@@ -3,6 +3,7 @@ import { api, SignedOut, type AdsConfig, type GamesReport, type LiveNow, type Ov
 import { clock } from '../format'
 import { AdsPage } from './AdsPage'
 import { ControlsPage } from './ControlsPage'
+import { CustomPage } from './CustomPage'
 import { LaunchPage } from './LaunchPage'
 import { LivePage } from './LivePage'
 import { LogsPage } from './LogsPage'
@@ -13,11 +14,12 @@ import { AudiencePage, FeedbackPage, GamesPage, GrowthPage, HealthPage, Overview
 // laid out for running one site: what is happening now, who comes and from where, what they play, what they say,
 // and every switch the site has (ads, a notice, pausing new rooms, games out, search engines).
 
-export type Route = 'overview' | 'live' | 'logs' | 'audience' | 'games' | 'growth' | 'feedback' | 'ads' | 'controls' | 'health' | 'launch'
+export type Route = 'overview' | 'live' | 'logs' | 'custom' | 'audience' | 'games' | 'growth' | 'feedback' | 'ads' | 'controls' | 'health' | 'launch'
 const ROUTES: { id: Route; label: string; icon: string }[] = [
   { id: 'overview', label: 'Overview', icon: 'M4 13h6V4H4zm10 7h6v-9h-6zM4 20h6v-4H4zm10-11h6V4h-6z' },
   { id: 'live', label: 'Live', icon: 'M12 10a2 2 0 1 0 2 2 2 2 0 0 0-2-2zm-4.2-2.8L6.4 5.8a8.5 8.5 0 0 0 0 12.4l1.4-1.4a6.5 6.5 0 0 1 0-9.6zm8.4 0a6.5 6.5 0 0 1 0 9.6l1.4 1.4a8.5 8.5 0 0 0 0-12.4zM9.2 9.6 7.8 8.2a5.4 5.4 0 0 0 0 7.6l1.4-1.4a3.4 3.4 0 0 1 0-4.8zm5.6 0a3.4 3.4 0 0 1 0 4.8l1.4 1.4a5.4 5.4 0 0 0 0-7.6z' },
   { id: 'logs', label: 'Logs', icon: 'M4 5h2v2H4zm4 0h12v2H8zm-4 6h2v2H4zm4 0h12v2H8zm-4 6h2v2H4zm4 0h12v2H8z' },
+  { id: 'custom', label: 'Custom rooms', icon: 'M12 2 4 6v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6zm-1 13-3.5-3.5 1.4-1.4 2.1 2.1 4.6-4.6 1.4 1.4z' },
   { id: 'audience', label: 'Audience', icon: 'M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm0 2c-2.7 0-6 1.3-6 3.5V19h12v-2.5C14 14.3 10.7 13 8 13zm8 0c-.3 0-.7 0-1.1.1A4.2 4.2 0 0 1 16 16.5V19h6v-2.5c0-2.2-3.3-3.5-6-3.5z' },
   { id: 'games', label: 'Games', icon: 'M7 6h10a5 5 0 0 1 0 10h-1l-2 2h-4l-2-2H7A5 5 0 0 1 7 6zm0 3v2H5v2h2v2h2v-2h2v-2H9V9zm9 1a1 1 0 1 0 1 1 1 1 0 0 0-1-1zm2 2a1 1 0 1 0 1 1 1 1 0 0 0-1-1z' },
   { id: 'growth', label: 'Growth', icon: 'M3 17l6-6 4 4 7-7v5h2V4h-9v2h5l-5 5-4-4-8 8z' },
@@ -178,7 +180,7 @@ export function Dash() {
   const live = now?.live ?? games?.live
   const fresh = nowAt !== null && !nowErr && Date.now() - nowAt < LIVE_MS * 3
   const since = nowAt ? Math.max(0, Math.round((Date.now() - nowAt) / 1000)) : null
-  const here = route === 'ads' || route === 'controls' || route === 'launch' || route === 'live' || route === 'logs' ? null : RANGES
+  const here = route === 'ads' || route === 'controls' || route === 'launch' || route === 'live' || route === 'logs' || route === 'custom' ? null : RANGES
   const current = ROUTES.find(r => r.id === route)!
 
   return (
@@ -229,6 +231,7 @@ export function Dash() {
           {route === 'overview' && <OverviewPage {...shared} />}
           {route === 'live' && <LivePage {...shared} />}
           {route === 'logs' && <LogsPage {...shared} />}
+          {route === 'custom' && <CustomPage {...shared} />}
           {route === 'audience' && <AudiencePage {...shared} />}
           {route === 'games' && <GamesPage {...shared} />}
           {route === 'growth' && <GrowthPage {...shared} />}

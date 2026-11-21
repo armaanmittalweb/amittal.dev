@@ -238,9 +238,14 @@ describe('resources', () => {
     expect((await post('/api/ct/person/abc123def', { a: 'test' })).status).toBe(200)
     expect((await post('/api/ct/person/a', { a: 'test' })).status).toBe(400)
     expect((await post('/api/ct/broadcast', { text: 'Back in five minutes' })).status).toBe(200)
+    // Custom rooms: the list, a new one, and not from another site or without a body.
+    expect((await get('/api/ct/custom')).status).toBe(200)
+    expect((await post('/api/ct/custom', { code: 'ACME1', custom: { title: 'Acme' }, switches: {} })).status).toBe(200)
+    expect((await post('/api/ct/custom', { custom: {} }, 'https://evil.example')).status).toBe(403)
+    expect((await post('/api/ct/custom', [1])).status).toBe(400)
     expect(calls).toEqual([
       'GET /internal/rooms', 'GET /internal/logs?kinds=join%2Cgame&q=riya', 'GET /internal/room?code=ABCDE', 'POST /internal/room?code=ABCDE',
-      'POST /internal/person?vid=abc123def', 'POST /internal/broadcast',
+      'POST /internal/person?vid=abc123def', 'POST /internal/broadcast', 'GET /internal/custom', 'POST /internal/custom',
     ])
   })
 

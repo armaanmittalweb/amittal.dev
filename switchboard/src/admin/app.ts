@@ -260,6 +260,14 @@ export function createAdmin(deps: AdminDeps) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) return c.json({ error: 'Could not read that' }, 400)
     return passGames(c, `/internal/person?vid=${vid}`, 'POST', body)
   })
+  // Custom rooms (games repo src/custom.ts): the list, a new one ({ code?, custom, switches }) or one taken off the list
+  // ({ a: 'drop', code }). Changing an open room's settings goes through /api/ct/room/:code with { a: 'custom' }.
+  app.get('/api/ct/custom', c => passGames(c, '/internal/custom'))
+  app.post('/api/ct/custom', async c => {
+    const body = await c.req.json().catch(() => null)
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return c.json({ error: 'Could not read that' }, 400)
+    return passGames(c, '/internal/custom', 'POST', body)
+  })
   app.post('/api/ct/broadcast', async c => {
     const body = await c.req.json().catch(() => null)
     if (!body || typeof body !== 'object') return c.json({ error: 'Could not read that' }, 400)
