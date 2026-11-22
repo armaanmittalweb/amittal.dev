@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
-import { api, SignedOut, type LiveRoom, type LiveRooms } from '../api'
+import { api, SignedOut, type LiveRoom, type LiveRooms, type Msg } from '../api'
 import { countryName } from '../format'
 import { Bump, type Shared } from './Dash'
+import { MessageEditor, msgEmpty, msgOut } from './MessageEditor'
 import { Avatar, BROWSERS, DEVICE, GAME_NAMES, gameName, PHASE, span } from './Panels'
 
 // Live: every room someone is in right now, who is in it under which name, and what they are playing; or the same
@@ -83,10 +84,15 @@ export function LivePage(s: Shared) {
   const screens = count(r => r.info!.screens)
   const hidden = (data?.rooms ?? []).filter(r => r.x).length
 
-  const broadcast = async () => {
-    const text = prompt(`A message to everyone in all ${real.length} open room${real.length === 1 ? '' : 's'}. It shows at the top of their screens, from Chaotic Tails:`, '')
-    if (!text?.trim()) return
-    try { const r = await api.broadcast(text.trim()); s.toast(`Sent to ${r.sent} of ${r.rooms} rooms`) } catch (e) { if (e instanceof SignedOut) s.signedOut(); else s.toast(e instanceof Error ? e.message : 'Could not send', 'err') }
+  // A message to every open room: written in a box like the notice (plain text or HTML, with buttons).
+  const [bc, setBc] = useState<Msg | null>(null)
+  const [bcBusy, setBcBusy] = useState(false)
+  const broadcast = () => setBc({ text: '' })
+  const sendBc = async () => {
+    if (!bc || msgEmpty(bc)) return
+    if (!confirm(`Send this to everyone in all ${real.length} open room${real.length === 1 ? '' : 's'}?`)) return
+    setBcBusy(true)
+    try { const r = await api.broadcast(msgOut(bc)); s.toast(`Sent to ${r.sent} of ${r.rooms} rooms`); setBc(null) } catch (e) { if (e instanceof SignedOut) s.signedOut(); else s.toast(e instanceof Error ? e.message : 'Could not send', 'err') } finally { setBcBusy(false) }
   }
   const pickView = (v: View) => { setView(v); savePref('ct-live-view', v) }
   const fresh = at && Date.now() - at < EVERY * 3
@@ -126,6 +132,16 @@ export function LivePage(s: Shared) {
         <button type="button" class="d-btn is-ghost" onClick={broadcast} disabled={!real.length}>Message every room</button>
       </div>
 
+      {bc && (
+        <div class="d-modal" role="dialog" aria-modal="true" aria-labelledby="bc-h" onClick={e => { if (e.target === e.currentTarget) setBc(null) }}>
+          <div class="d-card d-modal-card">
+            <h2 id="bc-h">Message every room</h2>
+            <p class="d-fine">It shows at the top of everyone's screen in all {real.length} open room{real.length === 1 ? '' : 's'}, from Chaotic Tails, until they close it.</p>
+            <MessageEditor value={bc} onChange={setBc} max={300} rows={3} label="Message" placeholder="e.g. Gukesh just won game 1! Play Mate in One in a chess room." />
+            <div class="d-row"><button type="button" class="d-btn" disabled={bcBusy || msgEmpty(bc)} onClick={() => void sendBc()}>{bcBusy ? 'Sending…' : 'Send to every room'}</button><button type="button" class="d-btn is-ghost" onClick={() => setBc(null)}>Cancel</button></div>
+          </div>
+        </div>
+      )}
       {err && <p class="d-note is-err" role="alert">{err}. Trying again every few seconds.</p>}
       {!data && !err && <div class="d-room-grid" aria-busy="true">{[0, 1, 2].map(i => <div key={i} class="d-card d-ghost" />)}</div>}
 

@@ -159,11 +159,18 @@ export interface AdsReport {
     | { connected: true; currency: string; days: { day: string; earnings: number; impressions: number; clicks: number; pageViews: number; rpm: number }[]; units: { unit: string; earnings: number; impressions: number; clicks: number }[]; total: { earnings: number; impressions: number; clicks: number; pageViews: number } }
 }
 
+/** A button under a message from the console (games repo src/rich.ts). */
+export interface Btn { label: string; href: string; style: 'main' | 'soft' }
+/** A message from the console: plain text, or HTML the site cleans, and up to four buttons. */
+export interface Msg { text: string; html?: boolean; buttons?: Btn[] }
+
 // Chaotic Tails' switches (src/site.ts in the games repo) and the launch checks (src/admin/chaotic.ts).
 export interface SiteConfig {
-  notice: { text: string; tone: 'info' | 'warn' | 'good'; until: number | null }
-  paused: { on: boolean; message: string }
+  notice: { text: string; tone: 'info' | 'warn' | 'good'; until: number | null; html?: boolean; buttons?: Btn[] }
+  paused: { on: boolean; message: string; html?: boolean; buttons?: Btn[] }
   gamesOff: string[]
+  /** The chess corner (chaotictails.com/chess), chess rooms and the chess games. */
+  chess?: boolean
   /** New rooms start with "Ask to join" on (hosts can still switch it per room). */
   askToJoin?: boolean
   /** Browsers kept out of every room, from the Live and Logs pages. */
@@ -204,7 +211,7 @@ export interface LiveRoom { rid: string; phase: string; at: number; created: num
 export interface Browser { country: string; device: string; x: boolean }
 export interface LiveRooms { now: number; rooms: LiveRoom[]; browsers: Record<string, Browser>; names: Record<string, string> }
 export interface RoomDetail extends RoomInfo {
-  rid: string | null; touched: number; quick: boolean; relaxed: boolean; watch: boolean; adFree: boolean; custom?: CustomSettings | null
+  rid: string | null; touched: number; quick: boolean; relaxed: boolean; watch: boolean; adFree: boolean; custom?: CustomSettings | null; chess?: boolean
   history: { id: string; at: number; winners: string[] }[]
   plan: { kind: string; games: string[]; at: number; done: boolean; table: { name: string; pts: number }[] } | null
   inst: { id: string; n: number; players: string[]; intro: boolean; paused: boolean; startedAt: number | null; chosen: number | null; moves: number } | null
@@ -219,14 +226,14 @@ export interface Person {
   blocked: { vid: string; name: string; note: string; at: number } | null
 }
 /** A custom room's settings (games repo src/custom.ts). */
-export interface CustomSettings { title: string; note: string; max: number; games: string[]; clean: boolean; adFree: boolean; days: number; key: string; label: string; made: number }
+export interface CustomSettings { title: string; note: string; noteHtml?: boolean; buttons?: Btn[]; max: number; games: string[]; clean: boolean; adFree: boolean; days: number; key: string; label: string; made: number }
 /** How a room's switches start (or are set to) along with its custom settings. */
-export interface RoomSwitches { locked?: boolean; ask?: boolean; relaxed?: boolean; quick?: boolean; watch?: boolean }
+export interface RoomSwitches { locked?: boolean; ask?: boolean; relaxed?: boolean; quick?: boolean; watch?: boolean; chess?: boolean }
 export interface CustomRow extends Partial<CustomSettings> {
   code: string; made: number; last: number; open: boolean
   room: { phase: string; game: string | null; touched: number | null; here: number; members: number; host: string | null } | null
 }
-export type RoomAction = { a: 'notice'; text: string } | { a: 'kick' | 'ban' | 'block' | 'host'; id: string; note?: string } | { a: 'end' | 'close' } | { a: 'lock' | 'ask'; on: boolean }
+export type RoomAction = ({ a: 'notice' } & Msg) | { a: 'kick' | 'ban' | 'block' | 'host'; id: string; note?: string } | { a: 'end' | 'close' } | { a: 'lock' | 'ask'; on: boolean }
   | { a: 'custom'; custom: (Partial<CustomSettings> & { newKey?: boolean }) | null; switches?: RoomSwitches }
 
 export const api = {
@@ -257,7 +264,7 @@ export const api = {
   },
   person: (vid: string) => call<Person>(`/api/ct/person/${vid}`),
   personAct: (vid: string, a: 'test' | 'untest' | 'block' | 'unblock', extra: { name?: string; note?: string } = {}) => post<Person>(`/api/ct/person/${vid}`, { a, ...extra }),
-  broadcast: (text: string) => post<{ sent: number; rooms: number }>('/api/ct/broadcast', { text }),
+  broadcast: (msg: Msg) => post<{ sent: number; rooms: number }>('/api/ct/broadcast', msg),
   customs: () => call<{ site: string; rooms: CustomRow[]; games?: { id: string; name: string; min: number; max: number }[] }>('/api/ct/custom'),
   customMake: (body: { code?: string; custom: Partial<CustomSettings>; switches: RoomSwitches }) => post<{ code: string; key: string; site: string; custom: CustomSettings }>('/api/ct/custom', body),
   customDrop: (code: string) => post<{ ok: true }>('/api/ct/custom', { a: 'drop', code }),

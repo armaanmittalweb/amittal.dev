@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'preact/hooks'
-import { api, type SiteConfig } from '../api'
+import { api, type Msg, type SiteConfig } from '../api'
 import { ago } from '../format'
 import { Toggle } from './AdsPage'
 import type { Shared } from './Dash'
+import { MessageEditor, msgEmpty, msgOut } from './MessageEditor'
 import { Card } from './pages'
+
+/** The chess notice the Chess card fills in: a line for the World Championship and a button to the chess corner. */
+const CHESS_NOTICE: Msg = {
+  text: '<b>World Chess Championship: Gukesh vs Sindarov.</b> Play <span class="rt-accent">Mate in One</span>, Knight Moves and 1,500 chess questions with your friends.',
+  html: true,
+  buttons: [{ label: 'Play chess games', href: '/chess', style: 'main' }],
+}
 
 // Every switch the site has, saved straight to it (src/site.ts in the games repo; pages pick changes up within
 // 30 seconds): a notice for everyone, pausing new rooms, taking a game out; and the one-off jobs.
@@ -22,13 +30,16 @@ const HOURS = [{ v: 0, l: 'Until I remove it' }, { v: 2, l: '2 hours' }, { v: 12
 
 export function ControlsPage(s: Shared) {
   const site = s.site
-  const [notice, setNotice] = useState(site?.notice.text ?? '')
+  const noticeOf = (c: SiteConfig | null): Msg => ({ text: c?.notice.text ?? '', html: !!c?.notice.html, buttons: c?.notice.buttons ?? [] })
+  const pauseOf = (c: SiteConfig | null): Msg => ({ text: c?.paused.message || PAUSE_DEFAULT, html: !!c?.paused.html, buttons: c?.paused.buttons ?? [] })
+  const [notice, setNotice] = useState<Msg>(noticeOf(site))
   const [tone, setTone] = useState<SiteConfig['notice']['tone']>(site?.notice.tone ?? 'info')
   const [hours, setHours] = useState(0)
-  const [pauseMsg, setPauseMsg] = useState(site?.paused.message || PAUSE_DEFAULT)
+  const [pauseMsg, setPauseMsg] = useState<Msg>(pauseOf(site))
   const [busy, setBusy] = useState<string | null>(null)
   const [vid, setVid] = useState('')
-  useEffect(() => { if (site) { setNotice(site.notice.text); setTone(site.notice.tone); setPauseMsg(site.paused.message || PAUSE_DEFAULT) } }, [site?.updated])
+  useEffect(() => { if (site) { setNotice(noticeOf(site)); setTone(site.notice.tone); setPauseMsg(pauseOf(site)) } }, [site?.updated])
+  const pause = (on: boolean) => { const m = msgOut(pauseMsg); return { paused: { on, message: m.text, html: !!m.html, buttons: m.buttons ?? [] } } }
 
   const save = async (what: string, next: Partial<SiteConfig>, done: string, ask?: string) => {
     if (ask && !confirm(ask)) return
@@ -49,7 +60,7 @@ export function ControlsPage(s: Shared) {
   if (!site) return <div class="d-grid" aria-busy="true"><div class="d-card is-wide d-ghost" /></div>
   const names = s.games?.names ?? {}
   const ids = Object.keys(names).sort((a, b) => names[a].localeCompare(names[b]))
-  const live = site.notice.text && (!site.notice.until || site.notice.until > Date.now())
+  const live = (site.notice.text || site.notice.buttons?.length) && (!site.notice.until || site.notice.until > Date.now())
 
   return (
     <div class="d-grid">
@@ -58,15 +69,34 @@ export function ControlsPage(s: Shared) {
           <span class="d-kicker">New rooms</span>
           <h2 id="pause-h">{site.paused.on ? 'New rooms are paused' : 'New rooms are open'}</h2>
           <p>{site.paused.on ? 'Hosts who try to make a room see the message below. Rooms already open carry on.' : 'Pause when something is broken, so new hosts do not start nights that would fail. Rooms already open are never touched.'}</p>
-          <label class="d-field"><span>What hosts see while paused</span><textarea rows={2} maxLength={220} value={pauseMsg} onInput={e => setPauseMsg((e.target as HTMLTextAreaElement).value)} /></label>
+          <MessageEditor value={pauseMsg} onChange={setPauseMsg} label="What hosts see while paused" rows={2} tone="warn" />
         </div>
         <div class="d-hero-act">
           {site.paused.on
-            ? <><button type="button" class="d-btn d-btn-big" disabled={!!busy} onClick={() => void save('pause', { paused: { on: false, message: pauseMsg } }, 'New rooms are open again.')}>Open new rooms</button>
-              <button type="button" class="d-btn is-ghost" disabled={!!busy} onClick={() => void save('pause', { paused: { on: true, message: pauseMsg } }, 'Message updated.')}>Update the message</button></>
-            : <button type="button" class="d-btn d-btn-big is-danger" disabled={!!busy} onClick={() => void save('pause', { paused: { on: true, message: pauseMsg } }, 'New rooms are paused.', 'Pause new rooms for everyone?')}>Pause new rooms</button>}
+            ? <><button type="button" class="d-btn d-btn-big" disabled={!!busy} onClick={() => void save('pause', pause(false), 'New rooms are open again.')}>Open new rooms</button>
+              <button type="button" class="d-btn is-ghost" disabled={!!busy} onClick={() => void save('pause', pause(true), 'Message updated.')}>Update the message</button></>
+            : <button type="button" class="d-btn d-btn-big is-danger" disabled={!!busy} onClick={() => void save('pause', pause(true), 'New rooms are paused.', 'Pause new rooms for everyone?')}>Pause new rooms</button>}
         </div>
       </section>
+
+      <Card title="Chess" sub="The chess corner at chaotictails.com/chess: chess rooms, Mate in One, Knight Moves, Square Hunt, chess trivia and chess packs" id="chess">
+        <div class="d-toggle-row">
+          <div>
+            <b>{site.chess !== false ? 'The chess corner is open' : 'The chess corner is closed'}</b>
+            <p class="d-fine">{site.chess !== false
+              ? 'Anyone can open /chess and make a chess room. Chess rooms show the chess games first and play Trivia, Imposter, Draw & Guess, Most Likely To and Closest Wins with chess questions and words.'
+              : '/chess sends people to the home page, new chess rooms cannot be made, and open chess rooms stop offering the chess games and choices the next time their host picks or starts a game. Switch it on again any time: nothing is lost.'}</p>
+          </div>
+          <Toggle on={site.chess !== false} label="The chess corner" disabled={!!busy}
+            onChange={v => void save('chess', { chess: v }, v ? 'The chess corner is open again.' : 'The chess corner is closed.', v ? undefined : 'Close the chess corner? /chess goes to the home page and chess rooms lose their chess games.')} />
+        </div>
+        <div class="d-row">
+          <a class="d-btn is-ghost" href="https://chaotictails.com/chess" target="_blank" rel="noopener">Open /chess</a>
+          <button type="button" class="d-btn is-ghost" onClick={() => { setNotice(CHESS_NOTICE); setTone('good'); document.getElementById('notice')?.scrollIntoView({ behavior: 'smooth' }) }}>Write a chess notice for the home page</button>
+          <a class="d-btn is-ghost" href="#/custom">Make a custom chess room</a>
+        </div>
+        <p class="d-fine">The notice button fills in the Notice below (with a button to /chess) for you to check and put up.</p>
+      </Card>
 
       <Card title="Ask to join" sub="Whether new rooms ask the host before letting someone in" id="ask">
         <div class="d-toggle-row">
@@ -94,17 +124,20 @@ export function ControlsPage(s: Shared) {
         <p class="d-fine">{typeof s.now?.testBrowsers === 'number' ? `${s.now.testBrowsers.toLocaleString('en-IN')} browsers are left out of the counts right now.` : 'Counting test browsers…'} A test browser's visits, rooms, games and ratings never reach any number here. A room made by one is left out of the room and game numbers even if others join it, but anyone in it without ?me=1 still counts as a visitor.</p>
       </Card>
 
-      <Card title="Notice" sub="One line at the top of the home page and every lobby. Players can close it." id="notice">
-        <form class="d-form" onSubmit={e => { e.preventDefault(); void save('notice', { notice: { text: notice.trim(), tone, until: hours ? Date.now() + hours * 3_600_000 : null } }, notice.trim() ? 'The notice is up. Pages show it within 30 seconds.' : 'The notice is gone.') }}>
-          <label class="d-field"><span>Message</span><textarea rows={3} maxLength={220} placeholder="e.g. New: 500 Bollywood questions in Trivia tonight!" value={notice} onInput={e => setNotice((e.target as HTMLTextAreaElement).value)} /><small>{notice.length}/220</small></label>
+      <Card title="Notice" sub="A message at the top of the home page, the chess corner and every lobby. Plain text, or HTML with buttons. Players can close it." id="notice">
+        <form class="d-form" onSubmit={e => {
+          e.preventDefault()
+          const m = msgOut(notice), empty = msgEmpty(notice)
+          void save('notice', { notice: { text: m.text, html: !!m.html, buttons: m.buttons ?? [], tone, until: hours ? Date.now() + hours * 3_600_000 : null } }, empty ? 'The notice is gone.' : 'The notice is up. Pages show it within 30 seconds.')
+        }}>
+          <MessageEditor value={notice} onChange={setNotice} label="Message" placeholder="e.g. New: 500 Bollywood questions in Trivia tonight!" tone={tone} />
           <div class="d-row">
             <div class="d-seg" role="radiogroup" aria-label="Kind">{TONES.map(t => <button key={t.value} type="button" role="radio" aria-checked={tone === t.value} class={tone === t.value ? 'is-on' : ''} onClick={() => setTone(t.value)}>{t.label}</button>)}</div>
             <label class="d-field is-inline"><span>Show for</span><select value={hours} onChange={e => setHours(Number((e.target as HTMLSelectElement).value))}>{HOURS.map(h => <option key={h.v} value={h.v}>{h.l}</option>)}</select></label>
           </div>
-          {notice.trim() && <div class={`d-preview site-${tone}`} aria-label="Preview">{notice.trim()}</div>}
           <div class="d-row">
-            <button type="submit" class="d-btn" disabled={!!busy}>{notice.trim() ? 'Put it up' : 'Save'}</button>
-            {live && <button type="button" class="d-btn is-ghost" disabled={!!busy} onClick={() => { setNotice(''); void save('notice', { notice: { text: '', tone, until: null } }, 'The notice is gone.') }}>Take it down</button>}
+            <button type="submit" class="d-btn" disabled={!!busy}>{msgEmpty(notice) ? 'Save' : 'Put it up'}</button>
+            {live && <button type="button" class="d-btn is-ghost" disabled={!!busy} onClick={() => { setNotice({ text: '' }); void save('notice', { notice: { text: '', tone, until: null } }, 'The notice is gone.') }}>Take it down</button>}
           </div>
           <p class="d-fine">{live ? `Showing now${site.notice.until ? `, until ${new Date(site.notice.until).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}` : ''}.` : 'No notice showing.'}</p>
         </form>

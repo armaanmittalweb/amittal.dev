@@ -1,8 +1,9 @@
 import type { ComponentChildren } from 'preact'
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
-import { api, SignedOut, type Browser, type LogLine, type Person, type RoomAction, type RoomDetail, type RoomMember } from '../api'
+import { api, SignedOut, type Browser, type LogLine, type Msg, type Person, type RoomAction, type RoomDetail, type RoomMember } from '../api'
 import { countryName } from '../format'
 import type { Shared } from './Dash'
+import { MessageEditor, msgEmpty, msgOut } from './MessageEditor'
 
 // The side panel the Live and Logs pages open: one room (read live from the room, every few seconds, with the
 // console's actions on it) or one browser (where it came from, the names it played under, its rooms and lines).
@@ -140,7 +141,7 @@ function RoomPanel({ code, s }: { code: string; s: Shared }) {
   const load = useCallback(() => api.room(code), [code])
   const [data, err, pull] = usePoll(load, 3000, s)
   const [busy, setBusy] = useState<string | null>(null)
-  const [msg, setMsg] = useState('')
+  const [msg, setMsg] = useState<Msg>({ text: '' })
   const [openLine, setOpenLine] = useState<number | null>(null)
   const [gone, setGone] = useState(false)
 
@@ -182,16 +183,15 @@ function RoomPanel({ code, s }: { code: string; s: Shared }) {
           {r.relaxed && <span class="d-tag">More time</span>}
           {!r.watch && <span class="d-tag">No watching</span>}
           {r.adFree && <span class="d-tag">First room (no ads)</span>}
+          {r.chess && <span class="d-tag">Chess room</span>}
         </div>
         {err && <p class="d-fine" role="status">Not updating: {err}</p>}
       </header>
 
       <Section title="Do something">
-        <form class="d-msg" onSubmit={e => { e.preventDefault(); if (msg.trim()) void act({ a: 'notice', text: msg.trim() }, 'Sent to everyone in the room').then(() => setMsg('')) }}>
-          <label class="d-field"><span>Message to everyone in the room <small>{msg.length}/300</small></span>
-            <input value={msg} maxLength={300} placeholder="Shows at the top of their screens, from Chaotic Tails" onInput={e => setMsg((e.target as HTMLInputElement).value)} />
-          </label>
-          <button type="submit" class="d-btn" disabled={!msg.trim() || busy === 'notice'}>Send</button>
+        <form class="d-form" onSubmit={e => { e.preventDefault(); if (!msgEmpty(msg)) void act({ a: 'notice', ...msgOut(msg) }, 'Sent to everyone in the room').then(() => setMsg({ text: '', html: msg.html })) }}>
+          <MessageEditor value={msg} onChange={setMsg} max={300} rows={2} label="Message to everyone in the room" placeholder="Shows at the top of their screens, from Chaotic Tails" />
+          <div class="d-row"><button type="submit" class="d-btn" disabled={msgEmpty(msg) || busy === 'notice'}>Send</button></div>
         </form>
         <div class="d-row">
           {r.phase === 'game' && <button type="button" class="d-btn is-ghost" disabled={!!busy} onClick={() => act({ a: 'end' }, 'The game was stopped', `Stop ${gameName(r.game)} for everyone in room ${code}?`)}>Stop the game</button>}

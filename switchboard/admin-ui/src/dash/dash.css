@@ -570,3 +570,32 @@ summary.d-icon-btn { position: relative; list-style: none; }
 .cr-main b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cr-main small { color: var(--muted); font-size: 0.8125rem; }
 .cr-act { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* The message editor (MessageEditor.tsx): plain text or HTML, a toolbar, buttons and a preview like the site's. */
+.d-msged { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.d-msged-head { justify-content: space-between; }
+.d-msged-label { font-size: 0.875rem; font-weight: 600; color: var(--text2); }
+.d-msged-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.d-msged textarea.is-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8125rem; }
+.d-msged-btns { display: flex; flex-direction: column; gap: 8px; }
+.d-msged-btn { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto auto; gap: 6px; align-items: center; }
+.d-msged-btn .d-input { width: 100%; min-height: 38px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line2); background: var(--card2); color: var(--text); font-size: 0.875rem; }
+.d-msged-btn .d-input.is-bad { border-color: #d03b3b; }
+@media (max-width: 640px) { .d-msged-btn { grid-template-columns: 1fr 1fr; } }
+.d-fine.is-err { color: #d03b3b; }
+.d-preview .rt :where(p, h3, h4, ul, ol) { margin: 4px 0; }
+.d-preview .rt img { max-width: 100%; height: auto; border-radius: 8px; }
+.d-preview .rt a { color: inherit; font-weight: 700; }
+.d-preview .rt-big { font-size: 1.25em; font-weight: 800; } .d-preview .rt-small { font-size: .85em; } .d-preview .rt-muted { opacity: .7; }
+.d-preview .rt-accent { color: #e2bf72; font-weight: 700; } .d-preview .rt-gold { color: #e0a400; } .d-preview .rt-green { color: #2e8540; } .d-preview .rt-red { color: #d03b3b; }
+.d-preview .rt-center { display: block; text-align: center; }
+.d-preview .rt-chip { display: inline-block; padding: 1px 9px; border-radius: 99px; background: rgba(127, 127, 127, .18); font-weight: 700; font-size: .875em; }
+.d-preview .rt-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.d-preview .rt-btn { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 99px; font-weight: 800; font-size: .875rem; }
+.d-preview .rt-btn.is-main { background: var(--text); color: var(--bg); } .d-preview .rt-btn.is-soft { background: var(--card2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line2); }
+.cr-note { grid-column: 1 / -1; }
+
+/* A box over the page (Message every room on the Live page). */
+.d-modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: rgba(8, 9, 12, .6); }
+.d-modal-card { width: min(640px, 100%); max-height: calc(100dvh - 32px); overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.d-modal-card h2 { margin: 0; }

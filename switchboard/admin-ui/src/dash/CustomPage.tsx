@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
-import { api, SignedOut, type CustomRow, type CustomSettings, type RoomSwitches } from '../api'
+import { api, SignedOut, type Btn, type CustomRow, type CustomSettings, type RoomSwitches } from '../api'
 import { ago } from '../format'
 import { Toggle } from './AdsPage'
 import type { Shared } from './Dash'
+import { MessageEditor, msgOut } from './MessageEditor'
 import { GAME_NAMES, gameName } from './Panels'
 import { Card } from './pages'
 
@@ -11,12 +12,13 @@ import { Card } from './pages'
 // open can be given the same powers, and every setting can be changed while it is open.
 
 type Form = {
-  code: string; title: string; note: string; label: string; max: number; days: number; all: boolean; games: string[]
-  clean: boolean; adFree: boolean; locked: boolean; ask: boolean; relaxed: boolean; quick: boolean; watch: boolean
+  code: string; title: string; note: string; noteHtml: boolean; buttons: Btn[]; label: string; max: number; days: number; all: boolean; games: string[]
+  clean: boolean; adFree: boolean; locked: boolean; ask: boolean; relaxed: boolean; quick: boolean; watch: boolean; chess: boolean
 }
-const BLANK: Form = { code: '', title: '', note: '', label: '', max: 30, days: 7, all: true, games: [], clean: false, adFree: true, locked: false, ask: false, relaxed: false, quick: false, watch: true }
+const BLANK: Form = { code: '', title: '', note: '', noteHtml: false, buttons: [], chess: false, label: '', max: 30, days: 7, all: true, games: [], clean: false, adFree: true, locked: false, ask: false, relaxed: false, quick: false, watch: true }
 const DAYS = [1, 3, 7, 14, 30, 60]
 const SWITCHES: { k: keyof Form; title: string; sub: string }[] = [
+  { k: 'chess', title: 'Chess room', sub: 'The chess games first, a Chess night, and chess questions and words in Trivia, Imposter, Draw & Guess, Most Likely To and Closest Wins (while the Chess switch on Controls is on).' },
   { k: 'clean', title: 'Clean only', sub: 'No 18+ nights or settings. For offices, schools and families.' },
   { k: 'adFree', title: 'No ads', sub: 'No box ads in this room, whatever the site’s ad settings.' },
   { k: 'locked', title: 'Locked', sub: 'Nobody can join except with the host link. Unlock it once the host is in.' },
@@ -62,7 +64,7 @@ export function CustomPage(s: Shared) {
       const { room } = await api.room(code)
       const c = room.custom
       setF({
-        code, title: c?.title ?? '', note: c?.note ?? '', label: c?.label ?? '', max: c?.max ?? 30, days: c?.days ?? 7,
+        code, title: c?.title ?? '', note: c?.note ?? '', noteHtml: !!c?.noteHtml, buttons: c?.buttons ?? [], chess: !!room.chess, label: c?.label ?? '', max: c?.max ?? 30, days: c?.days ?? 7,
         all: !c?.games.length, games: c?.games ?? [], clean: c?.clean ?? false, adFree: c?.adFree ?? room.adFree,
         locked: room.locked, ask: room.ask, relaxed: room.relaxed, quick: room.quick, watch: room.watch,
       })
@@ -72,8 +74,9 @@ export function CustomPage(s: Shared) {
     } catch (e) { s.toast(e instanceof Error ? e.message : `Could not open room ${code}`, 'err') } finally { setBusy(null) }
   }
 
-  const settings = (): Partial<CustomSettings> => ({ title: f.title, note: f.note, label: f.label, max: f.max, days: f.days, games: f.all ? [] : f.games, clean: f.clean, adFree: f.adFree })
-  const switches = (): RoomSwitches => ({ locked: f.locked, ask: f.ask, relaxed: f.relaxed, quick: f.quick, watch: f.watch })
+  const note = () => msgOut({ text: f.note, html: f.noteHtml, buttons: f.buttons })
+  const settings = (): Partial<CustomSettings> => ({ title: f.title, note: note().text, noteHtml: !!note().html, buttons: note().buttons ?? [], label: f.label, max: f.max, days: f.days, games: f.all ? [] : f.games, clean: f.clean, adFree: f.adFree })
+  const switches = (): RoomSwitches => ({ locked: f.locked, ask: f.ask, relaxed: f.relaxed, quick: f.quick, watch: f.watch, chess: f.chess })
   const submit = async (e: Event) => {
     e.preventDefault()
     if (!f.all && !f.games.length) return s.toast('Pick at least one game, or turn on Every game', 'err')
@@ -148,9 +151,7 @@ export function CustomPage(s: Shared) {
             <label class="d-field"><span>Name in the room <small>{f.title.length}/40</small></span>
               <input value={f.title} maxLength={40} placeholder="e.g. Acme team game night" onInput={e => set({ title: (e.target as HTMLInputElement).value })} />
             </label>
-            <label class="d-field"><span>Note in the lobby <small>{f.note.length}/200</small></span>
-              <input value={f.note} maxLength={200} placeholder="e.g. Lunch break games, 1 to 2 pm" onInput={e => set({ note: (e.target as HTMLInputElement).value })} />
-            </label>
+            <div class="cr-note"><MessageEditor value={{ text: f.note, html: f.noteHtml, buttons: f.buttons }} onChange={m => set({ note: m.text, noteHtml: !!m.html, buttons: m.buttons ?? [] })} max={200} rows={2} label="Note in the lobby" placeholder="e.g. Lunch break games, 1 to 2 pm" /></div>
             <label class="d-field"><span>Most players <small>2 to 50</small></span>
               <input type="number" min={2} max={50} value={f.max} onInput={e => set({ max: Math.max(2, Math.min(50, Number((e.target as HTMLInputElement).value) || 2)) })} />
             </label>
