@@ -1,17 +1,26 @@
 import { useEffect, useState } from 'preact/hooks'
-import { api, type Msg, type SiteConfig } from '../api'
+import { api, type Msg, type NoticePage, type ShortLink, type SiteConfig } from '../api'
 import { ago } from '../format'
 import { Toggle } from './AdsPage'
 import type { Shared } from './Dash'
 import { MessageEditor, msgEmpty, msgOut } from './MessageEditor'
 import { Card } from './pages'
 
-/** The chess notice the Chess card fills in: a line for the World Championship and a button to the chess corner. */
+/** The chess notice the Chess card fills in, for the home page: what the chess corner has, and a button that says where
+ *  it goes. */
 const CHESS_NOTICE: Msg = {
-  text: '<b>World Chess Championship: Gukesh vs Sindarov.</b> Play <span class="rt-accent">Mate in One</span>, Knight Moves and 1,500 chess questions with your friends.',
-  html: true,
-  buttons: [{ label: 'Play chess games', href: '/chess', style: 'main' }],
+  text: 'The chess corner is open for the World Championship: Mate in One, Knight Moves, Square Hunt and 1,500 chess questions. Free until the match ends.',
+  html: false,
+  buttons: [{ label: 'Play chess with friends', href: '/chess', style: 'soft' }],
 }
+/** Where a notice can show. A notice in a room opens its links in a new tab, so a guest is never taken out of it. */
+const PAGES: { value: NoticePage; label: string; hint: string }[] = [
+  { value: 'home', label: 'Home page', hint: 'drawn with the page, so nothing jumps' },
+  { value: 'chess', label: 'Chess corner (/chess)', hint: 'leave off for a notice about chess' },
+  { value: 'rooms', label: 'Every lobby', hint: 'links open in a new tab' },
+]
+/** Pages a short link can send people to, to pick from (any page of the site can be typed instead). */
+const LINK_PAGES = ['/chess', '/chess?mate=1', '/', '/daily', '/games', '/games/stopwatch', '/games/trivia', '/games/mate1']
 
 // Every switch the site has, saved straight to it (src/site.ts in the games repo; pages pick changes up within
 // 30 seconds): a notice for everyone, pausing new rooms, taking a game out; and the one-off jobs.
@@ -36,9 +45,11 @@ export function ControlsPage(s: Shared) {
   const [tone, setTone] = useState<SiteConfig['notice']['tone']>(site?.notice.tone ?? 'info')
   const [hours, setHours] = useState(0)
   const [pauseMsg, setPauseMsg] = useState<Msg>(pauseOf(site))
+  const [pages, setPages] = useState<NoticePage[]>(site?.notice.pages ?? ['home'])
   const [busy, setBusy] = useState<string | null>(null)
   const [vid, setVid] = useState('')
-  useEffect(() => { if (site) { setNotice(noticeOf(site)); setTone(site.notice.tone); setPauseMsg(pauseOf(site)) } }, [site?.updated])
+  const [link, setLink] = useState<ShortLink>({ path: '', to: '/chess', tag: '' })
+  useEffect(() => { if (site) { setNotice(noticeOf(site)); setTone(site.notice.tone); setPages(site.notice.pages ?? ['home']); setPauseMsg(pauseOf(site)) } }, [site?.updated])
   const pause = (on: boolean) => { const m = msgOut(pauseMsg); return { paused: { on, message: m.text, html: !!m.html, buttons: m.buttons ?? [] } } }
 
   const save = async (what: string, next: Partial<SiteConfig>, done: string, ask?: string) => {
@@ -92,10 +103,49 @@ export function ControlsPage(s: Shared) {
         </div>
         <div class="d-row">
           <a class="d-btn is-ghost" href="https://chaotictails.com/chess" target="_blank" rel="noopener">Open /chess</a>
-          <button type="button" class="d-btn is-ghost" onClick={() => { setNotice(CHESS_NOTICE); setTone('good'); document.getElementById('notice')?.scrollIntoView({ behavior: 'smooth' }) }}>Write a chess notice for the home page</button>
+          <button type="button" class="d-btn is-ghost" onClick={() => { setNotice(CHESS_NOTICE); setTone('good'); setPages(['home']); document.getElementById('notice')?.scrollIntoView({ behavior: 'smooth' }) }}>Write a chess notice for the home page</button>
           <a class="d-btn is-ghost" href="#/custom">Make a custom chess room</a>
         </div>
-        <p class="d-fine">The notice button fills in the Notice below (with a button to /chess) for you to check and put up.</p>
+        <p class="d-fine">The notice button fills in the Notice below (with a button to /chess, on the home page only) for you to check and put up.</p>
+        <div class="d-toggle-row">
+          <div>
+            <b>{site.chessOver ? 'The match is over' : 'The match is on'}</b>
+            <p class="d-fine">{site.chessOver
+              ? '/chess talks about chess, not the match: no "Game N today" line and no player names in its title. The daily\'s chess bonus has stopped.'
+              : '/chess shows what is on today ("Game 4 today", rest days, tiebreaks) and the daily has a Mate in One bonus. Switch this on if someone wins early (7.5 points). After 12 December it happens by itself.'}</p>
+          </div>
+          <Toggle on={!!site.chessOver} label="The match is over" disabled={!!busy}
+            onChange={v => void save('chessOver', { chessOver: v }, v ? 'The chess corner now talks about chess, not the match.' : 'The chess corner follows the match again.')} />
+        </div>
+      </Card>
+
+      <Card title="Short links" sub="A link for each reel or post, like chaotictails.com/clock. It opens the page you pick and counts the visits under its own name in Sources." id="links">
+        {(site.links ?? []).length ? <ul class="d-links">{(site.links ?? []).map(l => (
+          <li key={l.path}>
+            <span><b>chaotictails.com/{l.path}</b><span class="d-fine"> → {l.to} · counted as <code>{l.tag}</code></span></span>
+            <span class="d-row">
+              <button type="button" class="d-btn is-ghost is-small" onClick={() => { void navigator.clipboard?.writeText(`https://chaotictails.com/${l.path}`); s.toast('Link copied') }}>Copy</button>
+              <button type="button" class="d-btn is-ghost is-small" disabled={!!busy} onClick={() => void save('links', { links: (site.links ?? []).filter(x => x.path !== l.path) }, `chaotictails.com/${l.path} is gone.`, `Remove chaotictails.com/${l.path}? A reel that shows it will lead to a page that is not found.`)}>Remove</button>
+            </span>
+          </li>))}</ul> : <p class="d-fine">No short links yet.</p>}
+        <form class="d-form" onSubmit={e => {
+          e.preventDefault()
+          const path = link.path.trim().replace(/^\/+|\/+$/g, '').toLowerCase()
+          if (!/^[a-z0-9][a-z0-9-]{1,29}$/.test(path)) { s.toast('A short link is 2 to 30 letters, numbers or dashes, like clock or mate-12', 'err'); return }
+          if ((site.links ?? []).some(x => x.path === path)) { s.toast(`chaotictails.com/${path} is already there`, 'err'); return }
+          const to = link.to.trim().startsWith('/') ? link.to.trim() : '/' + link.to.trim()
+          const tag = link.tag.trim() || `ig-${path}`
+          void save('links', { links: [...(site.links ?? []), { path, to, tag }] }, `chaotictails.com/${path} works now.`).then(() => setLink({ path: '', to: link.to, tag: '' }))
+        }}>
+          <div class="d-row">
+            <label class="d-field"><span>Short link</span><input value={link.path} placeholder="clock" onInput={e => setLink({ ...link, path: (e.target as HTMLInputElement).value })} /></label>
+            <label class="d-field"><span>Opens</span><input value={link.to} list="d-link-pages" placeholder="/games/stopwatch" onInput={e => setLink({ ...link, to: (e.target as HTMLInputElement).value })} /></label>
+            <label class="d-field"><span>Counted as</span><input value={link.tag} placeholder={`ig-${link.path.trim() || 'clock'}`} onInput={e => setLink({ ...link, tag: (e.target as HTMLInputElement).value })} /></label>
+          </div>
+          <datalist id="d-link-pages">{LINK_PAGES.map(p => <option key={p} value={p} />)}</datalist>
+          <div class="d-row"><button type="submit" class="d-btn" disabled={!!busy}>Add the link</button></div>
+          <p class="d-fine">Use a different link for each reel, and in its comment replies, so Sources shows which one brought people. /chess?mate=12 opens the chess corner on warm-up puzzle 12 (its number shows next to the board, with a link to copy).</p>
+        </form>
       </Card>
 
       <Card title="Ask to join" sub="Whether new rooms ask the host before letting someone in" id="ask">
@@ -124,17 +174,21 @@ export function ControlsPage(s: Shared) {
         <p class="d-fine">{typeof s.now?.testBrowsers === 'number' ? `${s.now.testBrowsers.toLocaleString('en-IN')} browsers are left out of the counts right now.` : 'Counting test browsers…'} A test browser's visits, rooms, games and ratings never reach any number here. A room made by one is left out of the room and game numbers even if others join it, but anyone in it without ?me=1 still counts as a visitor.</p>
       </Card>
 
-      <Card title="Notice" sub="A message at the top of the home page, the chess corner and every lobby. Plain text, or HTML with buttons. Players can close it." id="notice">
+      <Card title="Notice" sub="A message at the top of the pages you pick: the home page, the chess corner, every lobby. Plain text, or HTML with buttons. Players can close it." id="notice">
         <form class="d-form" onSubmit={e => {
           e.preventDefault()
           const m = msgOut(notice), empty = msgEmpty(notice)
-          void save('notice', { notice: { text: m.text, html: !!m.html, buttons: m.buttons ?? [], tone, until: hours ? Date.now() + hours * 3_600_000 : null } }, empty ? 'The notice is gone.' : 'The notice is up. Pages show it within 30 seconds.')
+          if (!empty && !pages.length) { s.toast('Pick at least one place for the notice', 'err'); return }
+          void save('notice', { notice: { text: m.text, html: !!m.html, buttons: m.buttons ?? [], tone, pages, until: hours ? Date.now() + hours * 3_600_000 : null } }, empty ? 'The notice is gone.' : 'The notice is up. Pages show it within 30 seconds.')
         }}>
           <MessageEditor value={notice} onChange={setNotice} label="Message" placeholder="e.g. New: 500 Bollywood questions in Trivia tonight!" tone={tone} />
           <div class="d-row">
             <div class="d-seg" role="radiogroup" aria-label="Kind">{TONES.map(t => <button key={t.value} type="button" role="radio" aria-checked={tone === t.value} class={tone === t.value ? 'is-on' : ''} onClick={() => setTone(t.value)}>{t.label}</button>)}</div>
             <label class="d-field is-inline"><span>Show for</span><select value={hours} onChange={e => setHours(Number((e.target as HTMLSelectElement).value))}>{HOURS.map(h => <option key={h.v} value={h.v}>{h.l}</option>)}</select></label>
           </div>
+          <fieldset class="d-places"><legend>Show it on</legend>{PAGES.map(p => (
+            <label key={p.value} class="d-check"><input type="checkbox" checked={pages.includes(p.value)} onChange={e => setPages((e.target as HTMLInputElement).checked ? [...pages, p.value] : pages.filter(x => x !== p.value))} /> {p.label} <span class="d-fine">({p.hint})</span></label>
+          ))}</fieldset>
           <div class="d-row">
             <button type="submit" class="d-btn" disabled={!!busy}>{msgEmpty(notice) ? 'Save' : 'Put it up'}</button>
             {live && <button type="button" class="d-btn is-ghost" disabled={!!busy} onClick={() => { setNotice({ text: '' }); void save('notice', { notice: { text: '', tone, until: null } }, 'The notice is gone.') }}>Take it down</button>}

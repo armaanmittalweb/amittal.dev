@@ -165,12 +165,20 @@ export interface Btn { label: string; href: string; style: 'main' | 'soft' }
 export interface Msg { text: string; html?: boolean; buttons?: Btn[] }
 
 // Chaotic Tails' switches (src/site.ts in the games repo) and the launch checks (src/admin/chaotic.ts).
+export type NoticePage = 'home' | 'chess' | 'rooms'
+export interface ShortLink { path: string; to: string; tag: string; at?: number }
 export interface SiteConfig {
-  notice: { text: string; tone: 'info' | 'warn' | 'good'; until: number | null; html?: boolean; buttons?: Btn[] }
+  /** `pages`: where it shows (the home page only, unless picked). In rooms its links open in a new tab. */
+  notice: { text: string; tone: 'info' | 'warn' | 'good'; until: number | null; html?: boolean; buttons?: Btn[]; pages?: NoticePage[] }
   paused: { on: boolean; message: string; html?: boolean; buttons?: Btn[] }
   gamesOff: string[]
   /** The chess corner (chaotictails.com/chess), chess rooms and the chess games. */
   chess?: boolean
+  /** The World Championship match is over: /chess stops saying what is on today and talks about chess, not the match;
+   *  the daily's chess bonus stops. After 12 December the site does this by itself. */
+  chessOver?: boolean
+  /** Short links for reels (chaotictails.com/<path> → a page, counted under utm_source=<tag>). */
+  links?: ShortLink[]
   /** New rooms start with "Ask to join" on (hosts can still switch it per room). */
   askToJoin?: boolean
   /** Browsers kept out of every room, from the Live and Logs pages. */
